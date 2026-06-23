@@ -104,11 +104,12 @@ def run_bulk_scrape():
         print(f"  - Scraped/Saved: {scraped_count}", flush=True)
         print(f"  - Already Cached (Skipped): {skipped_count}", flush=True)
         
-        # Inter-season cooldown (wait 40 minutes = 2400 seconds)
-        # Only wait if we actually made API queries during this season
-        if season_idx < len(SEASONS) - 1 and scraped_count > 0:
-            print("\nSeason transition: cooling down to prevent IP block...", flush=True)
-            sleep_with_countdown(2400, "Inter-season cooldown break")
+        # Inter-season cooldown (dynamic: 2.0 seconds of cooldown per game scraped)
+        # Prevents long waits if only a few games were scraped
+        cooldown_seconds = int(scraped_count * 2.0)
+        if season_idx < len(SEASONS) - 1 and cooldown_seconds > 0:
+            print(f"\nSeason transition: cooling down for {cooldown_seconds // 60}m {cooldown_seconds % 60}s to prevent IP block...", flush=True)
+            sleep_with_countdown(cooldown_seconds, "Inter-season cooldown break")
             
     print("\n==================================================", flush=True)
     print("          Bulk Ingestion Completed!               ", flush=True)
