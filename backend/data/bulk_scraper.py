@@ -105,7 +105,8 @@ def run_bulk_scrape():
         print(f"  - Already Cached (Skipped): {skipped_count}", flush=True)
         
         # Inter-season cooldown (wait 40 minutes = 2400 seconds)
-        if season_idx < len(SEASONS) - 1:
+        # Only wait if we actually made API queries during this season
+        if season_idx < len(SEASONS) - 1 and scraped_count > 0:
             print("\nSeason transition: cooling down to prevent IP block...", flush=True)
             sleep_with_countdown(2400, "Inter-season cooldown break")
             
