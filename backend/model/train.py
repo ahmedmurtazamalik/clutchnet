@@ -78,6 +78,28 @@ def evaluate_loader(model, data_loader, criterion, device):
     avg_loss = total_loss / len(data_loader.dataset)
     probs = np.vstack(all_probs).squeeze()
     return avg_loss, probs
+def evaluate_ensemble_loader(models, data_loader, device):
+    """
+    Evaluates raw win probability predictions by averaging outputs across the ensemble.
+    """
+    for m in models:
+        m.eval()
+        
+    all_probs = []
+    with torch.no_grad():
+        for X_batch, _ in data_loader:
+            X_batch = X_batch.to(device)
+            # Collect probabilities from all models in the ensemble
+            batch_probs = []
+            for m in models:
+                outputs = m(X_batch)
+                batch_probs.append(outputs.cpu().numpy())
+            # Average predictions across ensemble instances (axis 0 is the model index)
+            avg_batch_prob = np.mean(np.array(batch_probs), axis=0)
+            all_probs.append(avg_batch_prob)
+            
+    probs = np.vstack(all_probs).squeeze()
+    return probs
 
 def train_model():
     data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "processed")
@@ -126,9 +148,7 @@ def train_model():
     val_dataset = GameStateDataset(X_val, y_val)
     test_dataset = GameStateDataset(X_test, y_test)
     
-    # Large batch size for training to optimize GPU utilization on large datasets
-    train_loader = DataLoader(train_dataset, batch_size=2048, shuffle=True)
-    # Larger batch size for val/test to speed up evaluation without tracking gradients
+    # Validation/Test loaders in memory-safe batch sizes to prevent OOM
     val_loader = DataLoader(val_dataset, batch_size=4096, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=4096, shuffle=False)
     
@@ -136,78 +156,112 @@ def train_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device for training: {device}")
     
-    # Initialize model
-    model = WinProbabilityNet(input_dim=len(FEATURE_COLS)).to(device)
-    criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    # Ensemble Seeds config
+    SEEDS = [42, 123, 456, 789, 999]
+    val_losses_by_seed = {}
     
-    # Learning rate scheduler: decays learning rate when validation loss plateaus
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
-    
-    # Training Loop config
-    epochs = 40
-    best_val_loss = float("inf")
-    weights_path = os.path.join(os.path.dirname(__file__), "weights.pt")
-    
-    # Early stopping config
-    patience = 5
-    epochs_no_improve = 0
-    
-    print("Training neural network...")
-    for epoch in range(1, epochs + 1):
-        model.train()
-        train_loss = 0.0
-        for X_batch, y_batch in train_loader:
-            X_batch = X_batch.to(device)
-            y_batch = y_batch.to(device)
-            
-            optimizer.zero_grad()
-            outputs = model(X_batch)
-            loss = criterion(outputs, y_batch)
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item() * X_batch.size(0)
-            
-        train_loss /= len(train_dataset)
+    for seed in SEEDS:
+        print(f"\n================ Training Model (Seed: {seed}) ================")
         
-        # Validation in memory-safe batches to prevent GPU OOM
-        val_loss, val_probs = evaluate_loader(model, val_loader, criterion, device)
+        # Seed all random number generators for reproducibility
+        import random
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            
+        # Create DataLoader with current seed shuffle generator
+        g = torch.Generator()
+        g.manual_seed(seed)
+        train_loader = DataLoader(train_dataset, batch_size=2048, shuffle=True, generator=g)
         
-        # Update scheduler
-        scheduler.step(val_loss)
+        # Initialize model
+        model = WinProbabilityNet(input_dim=len(FEATURE_COLS)).to(device)
+        criterion = nn.BCELoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
         
-        # Checkpoint and Early Stopping Check
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            # Save state_dict directly (map_location handles reloading dynamically)
-            torch.save(model.state_dict(), weights_path)
-            epochs_no_improve = 0
-        else:
-            epochs_no_improve += 1
+        # Learning rate scheduler
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
+        
+        # Training Loop config
+        epochs = 40
+        best_val_loss = float("inf")
+        seed_weights_path = os.path.join(os.path.dirname(__file__), f"weights_seed_{seed}.pt")
+        
+        # Early stopping config
+        patience = 5
+        epochs_no_improve = 0
+        
+        print(f"Training network instance (seed {seed})...")
+        for epoch in range(1, epochs + 1):
+            model.train()
+            train_loss = 0.0
+            for X_batch, y_batch in train_loader:
+                X_batch = X_batch.to(device)
+                y_batch = y_batch.to(device)
+                
+                optimizer.zero_grad()
+                outputs = model(X_batch)
+                loss = criterion(outputs, y_batch)
+                loss.backward()
+                optimizer.step()
+                train_loss += loss.item() * X_batch.size(0)
+                
+            train_loss /= len(train_dataset)
             
-        if epoch % 5 == 0 or epoch == 1:
-            val_acc = np.mean((val_probs >= 0.5) == y_val)
-            val_auc = roc_auc_score(y_val, val_probs)
-            current_lr = optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch:02d}/{epochs:02d} - LR: {current_lr:.6f} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {val_acc*100:.2f}% - Val AUC: {val_auc:.4f}")
+            # Validation in memory-safe batches
+            val_loss, val_probs = evaluate_loader(model, val_loader, criterion, device)
             
-        if epochs_no_improve >= patience:
-            print(f"Early stopping triggered at epoch {epoch}. Best Val Loss: {best_val_loss:.4f}")
-            break
+            # Update scheduler
+            scheduler.step(val_loss)
             
-    print(f"Training completed. Best Val Loss: {best_val_loss:.4f}. Model weights saved to {weights_path}")
+            # Checkpoint and Early Stopping Check
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save(model.state_dict(), seed_weights_path)
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+                
+            if epoch % 5 == 0 or epoch == 1:
+                val_acc = np.mean((val_probs >= 0.5) == y_val)
+                val_auc = roc_auc_score(y_val, val_probs)
+                current_lr = optimizer.param_groups[0]['lr']
+                print(f"Epoch {epoch:02d}/{epochs:02d} - LR: {current_lr:.6f} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {val_acc*100:.2f}% - Val AUC: {val_auc:.4f}")
+                
+            if epochs_no_improve >= patience:
+                print(f"Early stopping triggered at epoch {epoch}. Best Val Loss: {best_val_loss:.4f}")
+                break
+                
+        val_losses_by_seed[seed] = best_val_loss
+        print(f"Seed {seed} completed. Best Val Loss: {best_val_loss:.4f}")
+        
+    # Copy weights of best performing seed model to weights.pt for fallback single-model serving
+    best_overall_seed = min(val_losses_by_seed, key=val_losses_by_seed.get)
+    best_overall_val_loss = val_losses_by_seed[best_overall_seed]
+    import shutil
+    src_path = os.path.join(os.path.dirname(__file__), f"weights_seed_{best_overall_seed}.pt")
+    dest_path = os.path.join(os.path.dirname(__file__), "weights.pt")
+    shutil.copy(src_path, dest_path)
+    print(f"\nCopied best performing seed model {best_overall_seed} (Val Loss: {best_overall_val_loss:.4f}) to {dest_path}")
     
-    # Load best model for evaluation
-    model.load_state_dict(torch.load(weights_path, map_location=device))
-    model.eval()
+    # Load all models in the ensemble for unified evaluation
+    ensemble_models = []
+    for seed in SEEDS:
+        model_path = os.path.join(os.path.dirname(__file__), f"weights_seed_{seed}.pt")
+        m = WinProbabilityNet(input_dim=len(FEATURE_COLS)).to(device)
+        m.load_state_dict(torch.load(model_path, map_location=device))
+        m.eval()
+        ensemble_models.append(m)
+        
+    # Memory-safe evaluation on all splits using the complete ensemble
+    train_probs = evaluate_ensemble_loader(ensemble_models, DataLoader(train_dataset, batch_size=4096, shuffle=False), device)
+    val_probs = evaluate_ensemble_loader(ensemble_models, val_loader, device)
+    test_probs = evaluate_ensemble_loader(ensemble_models, test_loader, device)
     
-    # Memory-safe evaluation on all splits
-    _, train_probs = evaluate_loader(model, DataLoader(train_dataset, batch_size=4096, shuffle=False), criterion, device)
-    _, val_probs = evaluate_loader(model, val_loader, criterion, device)
-    _, test_probs = evaluate_loader(model, test_loader, criterion, device)
-    
-    # Evaluate
-    print("\n=== Model Evaluation ===")
+    # Evaluate Unified Ensemble
+    print("\n=== Unified Ensemble Model Evaluation ===")
     
     train_brier = compute_brier_score(y_train, train_probs)
     val_brier = compute_brier_score(y_val, val_probs)
