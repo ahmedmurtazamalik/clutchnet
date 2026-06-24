@@ -4,6 +4,8 @@ import torch
 from typing import Dict, Any, List
 from backend.model.network import WinProbabilityNet
 
+import glob
+
 FEATURE_COLS = [
     "period",
     "seconds_remaining_in_period",
@@ -23,15 +25,23 @@ FEATURE_COLS = [
 class Predictor:
     def __init__(self, model_dir: str = None):
         """
-        Loads the trained WinProbabilityNet and feature scaler parameters.
+        Loads the trained WinProbabilityNet ensemble and feature scaler parameters.
         """
         if model_dir is None:
             model_dir = os.path.dirname(__file__)
             
-        weights_path = os.path.join(model_dir, "weights.pt")
+        # Look for multi-seed ensemble weights
+        weights_paths = glob.glob(os.path.join(model_dir, "weights_seed_*.pt"))
+        
+        # Fallback to single weights.pt for backward compatibility
+        if not weights_paths:
+            single_path = os.path.join(model_dir, "weights.pt")
+            if os.path.exists(single_path):
+                weights_paths = [single_path]
+                
         scaler_path = os.path.join(model_dir, "scaler.json")
         
-        if not os.path.exists(weights_path) or not os.path.exists(scaler_path):
+        if not weights_paths or not os.path.exists(scaler_path):
             raise FileNotFoundError(
                 f"Model assets not found in {model_dir}. Please run model training first."
             )
@@ -43,14 +53,19 @@ class Predictor:
         self.mean = torch.tensor(scaler_params["mean"], dtype=torch.float32)
         self.scale = torch.tensor(scaler_params["scale"], dtype=torch.float32)
         
-        # Initialize network and load weights
-        self.model = WinProbabilityNet(input_dim=len(FEATURE_COLS))
-        self.model.load_state_dict(torch.load(weights_path, map_location=torch.device("cpu")))
-        self.model.eval()
+        # Initialize and load all models in the ensemble
+        self.models = []
+        for w_path in weights_paths:
+            model = WinProbabilityNet(input_dim=len(FEATURE_COLS))
+            model.load_state_dict(torch.load(w_path, map_location=torch.device("cpu")))
+            model.eval()
+            self.models.append(model)
+            
+        print(f"Loaded ensemble with {len(self.models)} model(s) from {model_dir}")
         
     def predict(self, state: Dict[str, Any]) -> float:
         """
-        Calculates the live win probability for the Home team.
+        Calculates the average live win probability for the Home team across the ensemble.
         Expects a dictionary with keys matching FEATURE_COLS.
         """
         try:
@@ -64,8 +79,10 @@ class Predictor:
         # Perform scaling directly without scikit-learn dependency
         x_scaled = (x - self.mean) / self.scale
         
-        # Inference (unsqueeze(0) adds the batch dimension: [N] -> [1, N])
+        # Inference across all models (unsqueeze(0) adds the batch dimension: [N] -> [1, N])
         with torch.no_grad():
-            prob = self.model(x_scaled.unsqueeze(0)).item()
+            x_input = x_scaled.unsqueeze(0)
+            probs = [model(x_input).item() for model in self.models]
+            prob = sum(probs) / len(probs)
             
         return prob
