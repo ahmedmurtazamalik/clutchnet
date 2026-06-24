@@ -7,7 +7,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_auc_score
 from backend.model.network import WinProbabilityNet
+
 
 FEATURE_COLS = [
     "period",
@@ -58,6 +60,25 @@ def compute_calibration_curve(y_true: np.ndarray, y_prob: np.ndarray, n_bins: in
             
     return true_probabilities, pred_probabilities, bin_centers
 
+def evaluate_loader(model, data_loader, criterion, device):
+    """
+    Evaluates model loss and predictions over a DataLoader in memory-safe batches.
+    """
+    model.eval()
+    total_loss = 0.0
+    all_probs = []
+    with torch.no_grad():
+        for X_batch, y_batch in data_loader:
+            X_batch = X_batch.to(device)
+            y_batch = y_batch.to(device)
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
+            total_loss += loss.item() * X_batch.size(0)
+            all_probs.append(outputs.cpu().numpy())
+    avg_loss = total_loss / len(data_loader.dataset)
+    probs = np.vstack(all_probs).squeeze()
+    return avg_loss, probs
+
 def train_model():
     data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "processed")
     train_path = os.path.join(data_dir, "train_features.csv")
@@ -102,24 +123,44 @@ def train_model():
     
     # Create datasets and dataloaders
     train_dataset = GameStateDataset(X_train, y_train)
+    val_dataset = GameStateDataset(X_val, y_val)
+    test_dataset = GameStateDataset(X_test, y_test)
     
-    train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
+    # Large batch size for training to optimize GPU utilization on large datasets
+    train_loader = DataLoader(train_dataset, batch_size=2048, shuffle=True)
+    # Larger batch size for val/test to speed up evaluation without tracking gradients
+    val_loader = DataLoader(val_dataset, batch_size=4096, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=4096, shuffle=False)
+    
+    # Device detection (GTX 1060 3GB support)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device for training: {device}")
     
     # Initialize model
-    model = WinProbabilityNet(input_dim=len(FEATURE_COLS))
+    model = WinProbabilityNet(input_dim=len(FEATURE_COLS)).to(device)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     
-    # Training Loop
+    # Learning rate scheduler: decays learning rate when validation loss plateaus
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
+    
+    # Training Loop config
     epochs = 40
     best_val_loss = float("inf")
     weights_path = os.path.join(os.path.dirname(__file__), "weights.pt")
+    
+    # Early stopping config
+    patience = 5
+    epochs_no_improve = 0
     
     print("Training neural network...")
     for epoch in range(1, epochs + 1):
         model.train()
         train_loss = 0.0
         for X_batch, y_batch in train_loader:
+            X_batch = X_batch.to(device)
+            y_batch = y_batch.to(device)
+            
             optimizer.zero_grad()
             outputs = model(X_batch)
             loss = criterion(outputs, y_batch)
@@ -129,33 +170,42 @@ def train_model():
             
         train_loss /= len(train_dataset)
         
-        # Validation
-        model.eval()
-        with torch.no_grad():
-            X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
-            y_val_tensor = torch.tensor(y_val, dtype=torch.float32).unsqueeze(1)
-            val_outputs = model(X_val_tensor)
-            val_loss = criterion(val_outputs, y_val_tensor).item()
-            
-        # Early Stopping check
+        # Validation in memory-safe batches to prevent GPU OOM
+        val_loss, val_probs = evaluate_loader(model, val_loader, criterion, device)
+        
+        # Update scheduler
+        scheduler.step(val_loss)
+        
+        # Checkpoint and Early Stopping Check
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            # Save state_dict directly (map_location handles reloading dynamically)
             torch.save(model.state_dict(), weights_path)
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
             
         if epoch % 5 == 0 or epoch == 1:
-            print(f"Epoch {epoch:02d}/{epochs:02d} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f}")
+            val_acc = np.mean((val_probs >= 0.5) == y_val)
+            val_auc = roc_auc_score(y_val, val_probs)
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Epoch {epoch:02d}/{epochs:02d} - LR: {current_lr:.6f} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {val_acc*100:.2f}% - Val AUC: {val_auc:.4f}")
+            
+        if epochs_no_improve >= patience:
+            print(f"Early stopping triggered at epoch {epoch}. Best Val Loss: {best_val_loss:.4f}")
+            break
             
     print(f"Training completed. Best Val Loss: {best_val_loss:.4f}. Model weights saved to {weights_path}")
     
     # Load best model for evaluation
-    model.load_state_dict(torch.load(weights_path))
+    model.load_state_dict(torch.load(weights_path, map_location=device))
     model.eval()
     
-    with torch.no_grad():
-        train_probs = model(torch.tensor(X_train, dtype=torch.float32)).numpy().squeeze()
-        val_probs = model(torch.tensor(X_val, dtype=torch.float32)).numpy().squeeze()
-        test_probs = model(torch.tensor(X_test, dtype=torch.float32)).numpy().squeeze()
-        
+    # Memory-safe evaluation on all splits
+    _, train_probs = evaluate_loader(model, DataLoader(train_dataset, batch_size=4096, shuffle=False), criterion, device)
+    _, val_probs = evaluate_loader(model, val_loader, criterion, device)
+    _, test_probs = evaluate_loader(model, test_loader, criterion, device)
+    
     # Evaluate
     print("\n=== Model Evaluation ===")
     
@@ -175,6 +225,15 @@ def train_model():
     print(f"Accuracy (Train):    {train_acc * 100:.2f}%")
     print(f"Accuracy (Val):      {val_acc * 100:.2f}%")
     print(f"Accuracy (Test):     {test_acc * 100:.2f}%")
+    
+    # ROC-AUC checks
+    train_auc = roc_auc_score(y_train, train_probs)
+    val_auc = roc_auc_score(y_val, val_probs)
+    test_auc = roc_auc_score(y_test, test_probs)
+    
+    print(f"ROC-AUC (Train):     {train_auc:.4f}")
+    print(f"ROC-AUC (Val):       {val_auc:.4f}")
+    print(f"ROC-AUC (Test):      {test_auc:.4f}")
     
     # Calibration details
     print("\nCalibration Check (Test Set Binning):")
