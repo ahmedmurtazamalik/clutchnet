@@ -1,5 +1,11 @@
+import sys
 import os
+
+# Add project root to sys.path to resolve 'backend' imports when running directly
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import json
+import time
 import numpy as np
 import pandas as pd
 import torch
@@ -10,6 +16,37 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_auc_score
 from backend.model.network import WinProbabilityNet
 
+try:
+    from tqdm import tqdm
+    HAS_TQDM = True
+except ImportError:
+    HAS_TQDM = False
+
+class SimpleProgressBar:
+    def __init__(self, total, prefix="", suffix="", length=30):
+        self.total = total
+        self.prefix = prefix
+        self.suffix = suffix
+        self.length = length
+        self.start_time = time.time()
+        
+    def update(self, current, loss_val=None):
+        elapsed = time.time() - self.start_time
+        speed = current / elapsed if elapsed > 0 else 0
+        eta = (self.total - current) / speed if speed > 0 else 0
+        
+        percent = 100 * (current / float(self.total))
+        filled_length = int(self.length * current // self.total)
+        bar = "█" * filled_length + "-" * (self.length - filled_length)
+        
+        loss_str = f" - Loss: {loss_val:.4f}" if loss_val is not None else ""
+        eta_str = f" - ETA: {eta:.1f}s" if current < self.total else f" - Time: {elapsed:.1f}s"
+        
+        sys.stdout.write(f"\r{self.prefix} |{bar}| {percent:.1f}%{loss_str}{eta_str} {self.suffix}")
+        sys.stdout.flush()
+        if current == self.total:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
 
 FEATURE_COLS = [
     "period",
@@ -197,7 +234,15 @@ def train_model():
         for epoch in range(1, epochs + 1):
             model.train()
             train_loss = 0.0
-            for X_batch, y_batch in train_loader:
+            total_batches = len(train_loader)
+            
+            if HAS_TQDM:
+                epoch_iter = tqdm(train_loader, desc=f"Epoch {epoch:02d}/{epochs:02d}", leave=False)
+            else:
+                pbar = SimpleProgressBar(total_batches, prefix=f"Epoch {epoch:02d}/{epochs:02d}")
+                epoch_iter = train_loader
+                
+            for i, (X_batch, y_batch) in enumerate(epoch_iter):
                 X_batch = X_batch.to(device)
                 y_batch = y_batch.to(device)
                 
@@ -208,6 +253,11 @@ def train_model():
                 optimizer.step()
                 train_loss += loss.item() * X_batch.size(0)
                 
+                if HAS_TQDM:
+                    epoch_iter.set_postfix({"loss": f"{loss.item():.4f}"})
+                else:
+                    pbar.update(i + 1, loss.item())
+                    
             train_loss /= len(train_dataset)
             
             # Validation in memory-safe batches
