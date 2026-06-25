@@ -2,17 +2,8 @@ import os
 import sqlite3
 import pandas as pd
 import numpy as np
+import json
 from typing import Tuple, Dict, Any
-
-# Static Elo ratings for the 2023-24 season (as a baseline prior)
-TEAM_ELOS = {
-    "BOS": 1650, "DEN": 1610, "OKC": 1600, "MIN": 1580, "LAC": 1560,
-    "MIL": 1550, "NYK": 1560, "PHI": 1540, "DAL": 1570, "CLE": 1530,
-    "IND": 1520, "PHX": 1520, "NOP": 1510, "LAL": 1510, "MIA": 1500,
-    "SAC": 1500, "GSW": 1510, "HOU": 1480, "CHI": 1460, "ATL": 1450,
-    "UTA": 1420, "BKN": 1410, "TOR": 1390, "MEM": 1370, "SAS": 1350,
-    "POR": 1330, "CHA": 1310, "CHO": 1310, "WAS": 1290, "DET": 1270
-}
 
 # Default Elo if team abbreviation not found
 DEFAULT_ELO = 1500
@@ -37,7 +28,9 @@ def preprocess_game(
     home_team_id: int, 
     away_team_id: int,
     home_team_abbr: str,
-    away_team_abbr: str
+    away_team_abbr: str,
+    home_elo: float = DEFAULT_ELO,
+    away_elo: float = DEFAULT_ELO
 ) -> pd.DataFrame:
     """
     Evaluates play-by-play events chronologically to engineer snapshot features.
@@ -47,10 +40,6 @@ def preprocess_game(
 
     # Ensure chronological order
     pbp_df = pbp_df.sort_values(by="eventnum").copy()
-
-    # Pre-game Elos
-    home_elo = TEAM_ELOS.get(home_team_abbr, DEFAULT_ELO)
-    away_elo = TEAM_ELOS.get(away_team_abbr, DEFAULT_ELO)
 
     # Output features storage
     processed_events = []
@@ -68,6 +57,12 @@ def preprocess_game(
     
     # Help track rebound states
     last_shot_shooter_team_id = None
+
+    # Running Momentum & Context variables
+    largest_lead = 0.0
+    last_non_tie_leader = 0  # 0: tie, 1: home, -1: away
+    lead_changes = 0.0
+    history = []  # list of (elapsed_time, home_score, away_score)
 
     def clean_desc(val: Any) -> str:
         if val is None or pd.isna(val):
@@ -97,9 +92,11 @@ def preprocess_game(
         # Parse Time Remaining in Game (Regulation is 4 periods of 720 seconds)
         if period <= 4:
             seconds_remaining_in_game = max(0.0, (4 - period) * 720.0) + seconds_remaining_in_period
+            elapsed_time = (period - 1) * 720.0 + (720.0 - seconds_remaining_in_period)
         else:
             # Overtime (5 minutes = 300 seconds)
-            seconds_remaining_in_game = 0.0  # Regulation is over
+            seconds_remaining_in_game = seconds_remaining_in_period
+            elapsed_time = 2880.0 + (period - 5) * 300.0 + (300.0 - seconds_remaining_in_period)
 
         # Score parsing and forward fill
         score_str = row["score"]
@@ -216,6 +213,40 @@ def preprocess_game(
                 elif p1_team == away_team_id:
                     away_fouls = min(5, away_fouls + 1)
 
+        # Derived Context features
+        is_overtime = 1 if period > 4 else 0
+        is_clutch = 1 if (seconds_remaining_in_game <= 300.0 and abs(score_margin) <= 5.0) else 0
+        largest_lead = max(largest_lead, abs(score_margin))
+
+        if score_margin > 0:
+            current_leader = 1
+        elif score_margin < 0:
+            current_leader = -1
+        else:
+            current_leader = 0
+
+        if current_leader != 0:
+            if last_non_tie_leader != 0 and current_leader != last_non_tie_leader:
+                lead_changes += 1
+            last_non_tie_leader = current_leader
+
+        # Momentum lookback (last 180 seconds of elapsed game time)
+        lookback_idx = len(history) - 1
+        while lookback_idx >= 0 and (elapsed_time - history[lookback_idx][0]) <= 180.0:
+            lookback_idx -= 1
+
+        if lookback_idx >= 0:
+            prev_home_score = history[lookback_idx][1]
+            prev_away_score = history[lookback_idx][2]
+        else:
+            prev_home_score = 0
+            prev_away_score = 0
+
+        home_pts_last_3_min = home_score - prev_home_score
+        away_pts_last_3_min = away_score - prev_away_score
+
+        history.append((elapsed_time, home_score, away_score))
+
         # Append computed features at this snapshot
         processed_events.append({
             "game_id": game_id,
@@ -233,6 +264,12 @@ def preprocess_game(
             "away_fouls": away_fouls,
             "home_pregame_rating": float(home_elo),
             "away_pregame_rating": float(away_elo),
+            "is_overtime": int(is_overtime),
+            "is_clutch": int(is_clutch),
+            "largest_lead": float(largest_lead),
+            "lead_changes": float(lead_changes),
+            "home_pts_last_3_min": float(home_pts_last_3_min),
+            "away_pts_last_3_min": float(away_pts_last_3_min),
             "description": h_desc or v_desc or n_desc or ""
         })
 
@@ -251,8 +288,9 @@ def get_game_winner(pbp_processed_df: pd.DataFrame) -> int:
 
 def preprocess_all_cached_games(processed_dir: str = "processed") -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Queries all games cached in SQLite, processes them, adds binary outcomes,
-    and splits datasets into train/validation/test folders.
+    Queries all games cached in SQLite, processes them chronologically to compute
+    dynamic rolling Elo ratings, engineers advanced features, and splits datasets
+    temporally into train/validation/test folders.
     """
     db_path = os.path.join(os.path.dirname(__file__), "raw", "clutchnet_cache.db")
     if not os.path.exists(db_path):
@@ -264,24 +302,50 @@ def preprocess_all_cached_games(processed_dir: str = "processed") -> Tuple[pd.Da
     games_list_df = pd.read_sql_query("SELECT * FROM games_list", conn)
     print(f"[PREPROCESSOR] Found {len(games_list_df)} games in SQLite cache.")
     
+    # Filter out synthetic games from train/val/test splits
+    real_games_list_df = games_list_df[games_list_df["season"] != "2023-24-SYNTHETIC"].copy()
+    
+    # Sort chronologically by game_date and game_id
+    real_games_list_df = real_games_list_df.sort_values(by=["game_date", "game_id"]).copy()
+    print(f"[PREPROCESSOR] Sorted {len(real_games_list_df)} real games chronologically.")
+    
+    current_elos = {}
+    last_season = None
     all_game_dfs = []
     
-    for _, game in games_list_df.iterrows():
+    # Compute rolling Elo ratings chronologically
+    for idx, game in real_games_list_df.iterrows():
         game_id = game["game_id"]
-        # Fetch raw PBP
+        season = game["season"]
+        home_team = game["home_team_abbr"]
+        away_team = game["away_team_abbr"]
+        
+        # FiveThirtyEight season-to-season Elo regression (regression towards the mean 1500)
+        if last_season is not None and last_season != season:
+            for team in current_elos:
+                current_elos[team] = 0.75 * current_elos[team] + 0.25 * 1500.0
+        last_season = season
+        
+        # Get pregame Elos
+        home_elo = current_elos.get(home_team, DEFAULT_ELO)
+        away_elo = current_elos.get(away_team, DEFAULT_ELO)
+        
+        # Fetch raw play-by-play events
         pbp_raw = pd.read_sql_query(
             "SELECT * FROM play_by_play WHERE game_id = ? ORDER BY eventnum ASC",
             conn, params=(game_id,)
         )
         
-        # Process events
+        # Process events with pregame Elos
         pbp_processed = preprocess_game(
             game_id=game_id,
             pbp_df=pbp_raw,
             home_team_id=int(game["home_team_id"]),
             away_team_id=int(game["away_team_id"]),
-            home_team_abbr=game["home_team_abbr"],
-            away_team_abbr=game["away_team_abbr"]
+            home_team_abbr=home_team,
+            away_team_abbr=away_team,
+            home_elo=home_elo,
+            away_elo=away_elo
         )
         
         if pbp_processed.empty:
@@ -293,30 +357,52 @@ def preprocess_all_cached_games(processed_dir: str = "processed") -> Tuple[pd.Da
         
         all_game_dfs.append(pbp_processed)
         
+        # Update rolling Elo ratings
+        # HCA = 100 points, K-factor = 20
+        hca = 100.0
+        expected_home = 1.0 / (1.0 + 10.0 ** ((away_elo - (home_elo + hca)) / 400.0))
+        k = 20.0
+        shift = k * (winner_label - expected_home)
+        
+        current_elos[home_team] = home_elo + shift
+        current_elos[away_team] = away_elo - shift
+        
     conn.close()
     
     if not all_game_dfs:
         print("[PREPROCESSOR] No games processed successfully.")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
-    # Group splits by Game ID to avoid sequence leakages
-    game_ids = list(games_list_df["game_id"].unique())
-    # Shuffle game ids for random splits
-    random_state = np.random.RandomState(42)
-    random_state.shuffle(game_ids)
+    # Save the final Elo ratings to latest_elos.json for low-latency live serving
+    latest_elos_path = os.path.join(os.path.dirname(__file__), "..", "model", "latest_elos.json")
+    with open(latest_elos_path, "w") as f:
+        json.dump(current_elos, f, indent=4)
+    print(f"[PREPROCESSOR] Saved latest Elo ratings to {latest_elos_path}")
     
-    n_games = len(game_ids)
-    train_end = int(n_games * 0.8)
-    val_end = int(n_games * 0.9)
+    # Split chronologically by season boundaries:
+    # Train: 2014-15 through 2021-22 (~8 seasons)
+    # Val:   2022-23 (1 season)
+    # Test:  2023-24 and 2024-25 (2 seasons)
+    train_seasons = {"2014-15", "2015-16", "2016-17", "2017-18", "2018-19", "2019-20", "2020-21", "2021-22"}
+    val_seasons = {"2022-23"}
+    test_seasons = {"2023-24", "2024-25"}
     
-    train_ids = set(game_ids[:train_end])
-    val_ids = set(game_ids[train_end:val_end])
-    test_ids = set(game_ids[val_end:])
+    game_id_to_season = real_games_list_df.set_index("game_id")["season"].to_dict()
     
-    train_list = [df for df in all_game_dfs if df["game_id"].iloc[0] in train_ids]
-    val_list = [df for df in all_game_dfs if df["game_id"].iloc[0] in val_ids]
-    test_list = [df for df in all_game_dfs if df["game_id"].iloc[0] in test_ids]
+    train_list = []
+    val_list = []
+    test_list = []
     
+    for df in all_game_dfs:
+        g_id = df["game_id"].iloc[0]
+        g_season = game_id_to_season.get(g_id)
+        if g_season in train_seasons:
+            train_list.append(df)
+        elif g_season in val_seasons:
+            val_list.append(df)
+        elif g_season in test_seasons:
+            test_list.append(df)
+            
     train_df = pd.concat(train_list, ignore_index=True) if train_list else pd.DataFrame()
     val_df = pd.concat(val_list, ignore_index=True) if val_list else pd.DataFrame()
     test_df = pd.concat(test_list, ignore_index=True) if test_list else pd.DataFrame()
