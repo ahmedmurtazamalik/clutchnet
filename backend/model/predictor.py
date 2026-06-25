@@ -19,7 +19,13 @@ FEATURE_COLS = [
     "home_fouls",
     "away_fouls",
     "home_pregame_rating",
-    "away_pregame_rating"
+    "away_pregame_rating",
+    "is_overtime",
+    "is_clutch",
+    "largest_lead",
+    "lead_changes",
+    "home_pts_last_3_min",
+    "away_pts_last_3_min"
 ]
 
 class Predictor:
