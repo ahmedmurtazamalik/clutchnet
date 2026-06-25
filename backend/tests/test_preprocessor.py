@@ -57,14 +57,16 @@ class TestPreprocessor(unittest.TestCase):
         
         df_raw = pd.DataFrame(raw_events)
         
-        # Run preprocessing
+        # Run preprocessing with custom pregame Elos
         df_processed = preprocess_game(
             game_id="001",
             pbp_df=df_raw,
             home_team_id=10,
             away_team_id=20,
             home_team_abbr="BOS",
-            away_team_abbr="LAL"
+            away_team_abbr="LAL",
+            home_elo=1600.0,
+            away_elo=1550.0
         )
         
         self.assertEqual(len(df_processed), 6)
@@ -74,6 +76,10 @@ class TestPreprocessor(unittest.TestCase):
         self.assertEqual(df_processed.iloc[2]["score_margin"], 2.0)
         # Event 4 score is missing -> should carry over previous margin (2.0)
         self.assertEqual(df_processed.iloc[3]["score_margin"], 2.0)
+        
+        # Verify Pregame Ratings
+        self.assertEqual(df_processed.iloc[0]["home_pregame_rating"], 1600.0)
+        self.assertEqual(df_processed.iloc[0]["away_pregame_rating"], 1550.0)
         
         # Verify Possession changes
         # Event 2: Home wins jump ball -> possession = 1
@@ -92,6 +98,19 @@ class TestPreprocessor(unittest.TestCase):
         # Home fouls should increment on defensive foul (Event 5)
         self.assertEqual(df_processed.iloc[4]["home_fouls"], 1)
         self.assertEqual(df_processed.iloc[4]["away_fouls"], 0)
+        
+        # Verify Context & Momentum features
+        # Overtime
+        self.assertEqual(df_processed.iloc[5]["is_overtime"], 0)
+        # Clutch (not in last 5 minutes yet)
+        self.assertEqual(df_processed.iloc[5]["is_clutch"], 0)
+        # Largest Lead
+        self.assertEqual(df_processed.iloc[5]["largest_lead"], 2.0)
+        # Lead Changes
+        self.assertEqual(df_processed.iloc[5]["lead_changes"], 0.0)
+        # Momentum last 3 minutes (11:30 to 10:30 is within 180s, so points scored should be 2.0)
+        self.assertEqual(df_processed.iloc[5]["home_pts_last_3_min"], 2.0)
+        self.assertEqual(df_processed.iloc[5]["away_pts_last_3_min"], 0.0)
         
         # Verify Winner calculation
         self.assertEqual(get_game_winner(df_processed), 1)
