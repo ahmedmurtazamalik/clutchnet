@@ -3,6 +3,8 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import json
+import sys
+import time
 from typing import Tuple, Dict, Any
 
 TEAM_KEYWORDS = {
@@ -363,8 +365,12 @@ def preprocess_all_cached_games(processed_dir: str = "processed") -> Tuple[pd.Da
     last_season = None
     all_game_dfs = []
     
+    total_games = len(real_games_list_df)
+    start_time = time.time()
+    print(f"[PREPROCESSOR] Processing {total_games} games...")
+    
     # Compute rolling Elo ratings chronologically
-    for idx, game in real_games_list_df.iterrows():
+    for current_idx, (_, game) in enumerate(real_games_list_df.iterrows()):
         game_id = game["game_id"]
         season = game["season"]
         home_team = game["home_team_abbr"]
@@ -417,6 +423,21 @@ def preprocess_all_cached_games(processed_dir: str = "processed") -> Tuple[pd.Da
         current_elos[home_team] = home_elo + shift
         current_elos[away_team] = away_elo - shift
         
+        # Progress update
+        if (current_idx + 1) % 100 == 0 or (current_idx + 1) == total_games:
+            elapsed = time.time() - start_time
+            speed = (current_idx + 1) / elapsed if elapsed > 0 else 0
+            eta = (total_games - (current_idx + 1)) / speed if speed > 0 else 0
+            percent = 100 * ((current_idx + 1) / total_games)
+            filled_length = int(30 * (current_idx + 1) // total_games)
+            bar = "█" * filled_length + "-" * (30 - filled_length)
+            sys.stdout.write(
+                f"\r[PREPROCESSOR] |{bar}| {percent:.1f}% - Done: {current_idx + 1}/{total_games} - Speed: {speed:.1f} games/s - ETA: {eta:.1f}s"
+            )
+            sys.stdout.flush()
+        
+    sys.stdout.write("\n")
+    sys.stdout.flush()
     conn.close()
     
     if not all_game_dfs:
