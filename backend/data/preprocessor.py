@@ -5,6 +5,40 @@ import numpy as np
 import json
 from typing import Tuple, Dict, Any
 
+TEAM_KEYWORDS = {
+    "ATL": ["HAWKS", "ATLANTA"],
+    "BOS": ["CELTICS", "BOSTON"],
+    "BKN": ["NETS", "BROOKLYN"],
+    "CHA": ["HORNETS", "CHARLOTTE"],
+    "CHO": ["HORNETS", "CHARLOTTE"],
+    "CHI": ["BULLS", "CHICAGO"],
+    "CLE": ["CAVALIERS", "CLEV", "CAVS"],
+    "DAL": ["MAVERICKS", "DALLAS", "MAVS"],
+    "DEN": ["NUGGETS", "DENVER"],
+    "DET": ["PISTONS", "DETROIT"],
+    "GSW": ["WARRIORS", "GOLDEN STATE"],
+    "HOU": ["ROCKETS", "HOUSTON"],
+    "IND": ["PACERS", "INDIANA"],
+    "LAC": ["CLIPPERS", "CLIP"],
+    "LAL": ["LAKERS", "LAKER"],
+    "MEM": ["GRIZZLIES", "MEMPHIS"],
+    "MIA": ["HEAT", "MIAMI"],
+    "MIL": ["BUCKS", "MILWAUKEE"],
+    "MIN": ["TIMBERWOLVES", "MINNESOTA", "WOLVES"],
+    "NOP": ["PELICANS", "NEW ORLEANS"],
+    "NYK": ["KNICKS", "NEW YORK"],
+    "OKC": ["THUNDER", "OKLAHOMA CITY"],
+    "ORL": ["MAGIC", "ORLANDO"],
+    "PHI": ["76ERS", "PHILADELPHIA", "SIXERS"],
+    "PHX": ["SUNS", "PHOENIX"],
+    "POR": ["BLAZERS", "PORTLAND", "TRAIL BLAZERS"],
+    "SAC": ["KINGS", "SACRAMENTO"],
+    "SAS": ["SPURS", "SAN ANTONIO"],
+    "TOR": ["RAPTORS", "TORONTO"],
+    "UTA": ["JAZZ", "UTAH"],
+    "WAS": ["WIZARDS", "WASHINGTON"]
+}
+
 # Default Elo if team abbreviation not found
 DEFAULT_ELO = 1500
 
@@ -192,12 +226,28 @@ def preprocess_game(
 
         # Resource tracking: Timeouts
         elif event_type == 9:  # Timeout
-            if h_desc and "TIMEOUT" in h_desc.upper():
+            timeout_desc = desc or n_desc.upper()
+            
+            home_keywords = TEAM_KEYWORDS.get(home_team_abbr, [home_team_abbr])
+            away_keywords = TEAM_KEYWORDS.get(away_team_abbr, [away_team_abbr])
+            
+            home_called = any(kw in timeout_desc for kw in home_keywords)
+            away_called = any(kw in timeout_desc for kw in away_keywords)
+            
+            if home_called and not away_called:
                 home_timeouts_remaining = max(0, home_timeouts_remaining - 1)
                 possession = 1
-            elif v_desc and "TIMEOUT" in v_desc.upper():
+            elif away_called and not home_called:
                 away_timeouts_remaining = max(0, away_timeouts_remaining - 1)
                 possession = -1
+            else:
+                # Fallback: check homedescription vs visitordescription
+                if h_desc and "TIMEOUT" in h_desc.upper():
+                    home_timeouts_remaining = max(0, home_timeouts_remaining - 1)
+                    possession = 1
+                elif v_desc and "TIMEOUT" in v_desc.upper():
+                    away_timeouts_remaining = max(0, away_timeouts_remaining - 1)
+                    possession = -1
 
         # Resource tracking: Fouls
         elif event_type == 6:  # Foul
