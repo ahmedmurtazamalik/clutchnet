@@ -12,8 +12,8 @@ class TestModelAndPredictor(unittest.TestCase):
         
     def test_network_dimensions(self):
         import torch
-        net = WinProbabilityNet(input_dim=13)
-        x = torch.randn(5, 13) # Batch of 5
+        net = WinProbabilityNet(input_dim=19)
+        x = torch.randn(5, 19) # Batch of 5
         out = net(x)
         self.assertEqual(out.shape, (5, 1))
         self.assertTrue(torch.all(out >= 0.0) and torch.all(out <= 1.0))
@@ -36,7 +36,13 @@ class TestModelAndPredictor(unittest.TestCase):
             "home_fouls": 0.0,
             "away_fouls": 0.0,
             "home_pregame_rating": 1500.0,
-            "away_pregame_rating": 1500.0
+            "away_pregame_rating": 1500.0,
+            "is_overtime": 0.0,
+            "is_clutch": 0.0,
+            "largest_lead": 0.0,
+            "lead_changes": 0.0,
+            "home_pts_last_3_min": 0.0,
+            "away_pts_last_3_min": 0.0
         }
         
         prob = predictor.predict(mock_state)
