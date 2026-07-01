@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { PlayEvent } from "../hooks/useWebSocket";
+import { getTeamColorInfo } from "../utils/teamColors";
 import { HelpCircle } from "lucide-react";
 
 interface PulseChartProps {
@@ -36,6 +37,9 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
       .padStart(2, "0")}`,
   }));
 
+  const homeColorInfo = getTeamColorInfo(homeTeam);
+  const awayColorInfo = getTeamColorInfo(awayTeam);
+
   // Tooltip custom renderer for premium style
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -45,30 +49,31 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
       const favoredTeam = homeFavored ? homeTeam : awayTeam;
       const margin = homeFavored ? prob - 50 : 50 - prob;
       const confidence = (50 + margin).toFixed(1);
+      const favoredColor = homeFavored ? homeColorInfo.primary : awayColorInfo.primary;
 
       return (
-        <div className="p-4 bg-slate-950/95 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md max-w-xs space-y-2">
-          <div className="flex justify-between items-center border-b border-slate-900 pb-2">
+        <div className="p-4 bg-slate-900/95 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md max-w-xs space-y-2">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-2">
             <span className="text-[10px] font-mono text-slate-400 font-semibold">{data.displayTime}</span>
             <span className="text-xs font-mono font-bold text-slate-200">
               {data.homeScore} - {data.awayScore}
             </span>
           </div>
 
-          <p className="text-xs text-slate-300 font-light leading-normal leading-relaxed">
+          <p className="text-xs text-slate-300 font-light leading-relaxed">
             {data.description || "Play event recorded."}
           </p>
 
-          <div className="pt-2 flex flex-col gap-1 text-[10px] uppercase font-bold tracking-wider">
+          <div className="pt-2 flex flex-col gap-1 text-[10px] uppercase font-bold tracking-wider font-athletic">
             <div className="flex justify-between">
               <span className="text-slate-400">Favored Team:</span>
-              <span className={homeFavored ? "text-neon-blue" : "text-neon-purple"}>
+              <span style={{ color: favoredColor }}>
                 {favoredTeam}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Win Probability:</span>
-              <span className={homeFavored ? "text-neon-blue" : "text-neon-purple"}>
+              <span style={{ color: favoredColor }}>
                 {confidence}%
               </span>
             </div>
@@ -80,25 +85,25 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
   };
 
   return (
-    <div className="w-full glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+    <div className="w-full stadium-panel p-6 rounded-2xl border border-slate-800 bg-stadium-charcoal/80 space-y-4">
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-base font-bold uppercase tracking-wider text-slate-200">
+          <h2 className="text-base font-bold uppercase tracking-wider text-slate-200 font-athletic">
             Win Probability Pulse Chart
           </h2>
           <p className="text-xs text-slate-400 font-light leading-relaxed">
             Live updates mapping the home team&apos;s win expectation (0% represents complete away advantage, 100% represents home certainty).
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-bold font-mono">
-          <div className="flex items-center gap-1.5 text-neon-blue">
-            <span className="w-2.5 h-2.5 bg-neon-blue rounded-full" />
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider font-athletic">
+          <div className="flex items-center gap-1.5" style={{ color: homeColorInfo.primary }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: homeColorInfo.primary }} />
             <span>{homeTeam || "HOME"} favored (&gt;50%)</span>
           </div>
-          <span className="text-slate-600">|</span>
-          <div className="flex items-center gap-1.5 text-neon-purple">
-            <span className="w-2.5 h-2.5 bg-neon-purple rounded-full" />
+          <span className="text-slate-700">|</span>
+          <div className="flex items-center gap-1.5" style={{ color: awayColorInfo.primary }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: awayColorInfo.primary }} />
             <span>{awayTeam || "AWAY"} favored (&lt;50%)</span>
           </div>
         </div>
@@ -108,7 +113,7 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
       <div className="h-72 w-full relative pt-2">
         {chartData.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-2">
-            <HelpCircle className="w-10 h-10 stroke-1 text-slate-600 animate-pulse" />
+            <HelpCircle className="w-10 h-10 stroke-1 text-slate-700 animate-pulse" />
             <p className="text-xs font-medium">Select a game feed and start playback to plot probability curves...</p>
           </div>
         ) : (
@@ -118,18 +123,19 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
             >
               <defs>
-                {/* 
-                  Vertical gradient matching the full range [0, 100].
-                  Top (y1=0) is Home WP 100% -> Colored cyan.
-                  Middle (offset=50%) is toss-up -> transitions.
-                  Bottom (y2=100) is Home WP 0% (Away WP 100%) -> Colored purple.
-                */}
                 <linearGradient id="probabilityGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.4} />
-                  <stop offset="45%" stopColor="#06b6d4" stopOpacity={0.08} />
-                  <stop offset="50%" stopColor="#1e293b" stopOpacity={0.02} />
-                  <stop offset="55%" stopColor="#d946ef" stopOpacity={0.08} />
-                  <stop offset="100%" stopColor="#d946ef" stopOpacity={0.4} />
+                  <stop offset="0%" stopColor={homeColorInfo.primary} stopOpacity={0.35} />
+                  <stop offset="45%" stopColor={homeColorInfo.primary} stopOpacity={0.06} />
+                  <stop offset="50%" stopColor="#18181b" stopOpacity={0.02} />
+                  <stop offset="55%" stopColor={awayColorInfo.primary} stopOpacity={0.06} />
+                  <stop offset="100%" stopColor={awayColorInfo.primary} stopOpacity={0.35} />
+                </linearGradient>
+                <linearGradient id="strokeGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={homeColorInfo.primary} />
+                  <stop offset="48%" stopColor={homeColorInfo.primary} />
+                  <stop offset="50%" stopColor="#71717a" />
+                  <stop offset="52%" stopColor={awayColorInfo.primary} />
+                  <stop offset="100%" stopColor={awayColorInfo.primary} />
                 </linearGradient>
               </defs>
 
@@ -172,8 +178,8 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               <Area
                 type="monotone"
                 dataKey="probability"
-                stroke="#06b6d4"
-                strokeWidth={2}
+                stroke="url(#strokeGradient)"
+                strokeWidth={2.5}
                 fill="url(#probabilityGlow)"
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0, fill: "#ffffff" }}
