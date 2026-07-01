@@ -7,6 +7,7 @@ import { PulseChart } from "../components/PulseChart";
 import { ImpactTicker } from "../components/ImpactTicker";
 import { MomentumBar } from "../components/MomentumBar";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { getTeamColorInfo } from "../utils/teamColors";
 import { Clock, ShieldAlert, Award, AlertCircle } from "lucide-react";
 
 export default function Dashboard() {
@@ -21,6 +22,10 @@ export default function Dashboard() {
   const homeScore = latestEvent?.home_score ?? 0;
   const awayScore = latestEvent?.away_score ?? 0;
   
+  // Dynamic Team Colors
+  const homeColorInfo = getTeamColorInfo(homeTeam);
+  const awayColorInfo = getTeamColorInfo(awayTeam);
+
   // Temporal details
   const period = latestEvent?.period ?? 1;
   const secondsInPeriod = latestEvent?.seconds_remaining_in_period ?? 720;
@@ -39,7 +44,7 @@ export default function Dashboard() {
   return (
     <div
       id="main-dashboard-container"
-      className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans"
+      className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-stadium-black court-grid text-slate-100 font-sans"
     >
       {/* Sidebar Selector */}
       <Sidebar
@@ -54,17 +59,36 @@ export default function Dashboard() {
         {/* Top Scoreboard Banner */}
         <section
           id="scoreboard-header"
-          className="w-full glass-panel rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 relative overflow-hidden"
+          className="w-full stadium-panel-glow rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 relative overflow-hidden"
         >
-          {/* Subtle background gradient glow */}
-          <div className="absolute top-[-50%] left-[50%] -translate-x-1/2 w-[60%] h-[150%] bg-gradient-to-b from-neon-blue/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+          {/* Dynamic home team background glow */}
+          {selectedGameId && (
+            <div 
+              className="absolute left-0 top-0 bottom-0 w-1/3 opacity-[0.04] pointer-events-none transition-all duration-500"
+              style={{
+                background: `radial-gradient(circle at 0% 50%, ${homeColorInfo.primary} 0%, transparent 70%)`
+              }}
+            />
+          )}
+          {/* Dynamic away team background glow */}
+          {selectedGameId && (
+            <div 
+              className="absolute right-0 top-0 bottom-0 w-1/3 opacity-[0.04] pointer-events-none transition-all duration-500"
+              style={{
+                background: `radial-gradient(circle at 100% 50%, ${awayColorInfo.primary} 0%, transparent 70%)`
+              }}
+            />
+          )}
 
           {selectedGameId ? (
             <>
               {/* Home Team */}
               <div className="flex items-center gap-4 w-full md:w-auto justify-end md:justify-start">
                 <div className="text-right">
-                  <h2 className="text-2xl font-black tracking-wider uppercase text-slate-100">
+                  <h2 
+                    className="text-3xl font-athletic font-black tracking-widest uppercase transition-all duration-500"
+                    style={{ color: homeColorInfo.primary }}
+                  >
                     {homeTeam}
                   </h2>
                   <span className="text-[10px] text-slate-400 font-semibold tracking-wider font-mono">
@@ -72,37 +96,60 @@ export default function Dashboard() {
                   </span>
                 </div>
                 {possession === 1 && (
-                  <span className="w-3.5 h-3.5 bg-neon-blue rounded-full glow-border-cyan animate-pulse" title="Possession" />
+                  <span 
+                    className="w-3.5 h-3.5 rounded-full animate-pulse transition-all duration-500" 
+                    style={{ 
+                      backgroundColor: homeColorInfo.primary,
+                      boxShadow: `0 0 14px ${homeColorInfo.primary}`
+                    }}
+                    title="Possession" 
+                  />
                 )}
               </div>
 
               {/* Central Match Status & Score */}
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                <div className="flex items-center gap-6 font-mono">
-                  <span className="text-4xl font-extrabold tracking-tighter text-neon-blue font-bold">
+              <div className="flex flex-col items-center gap-2 shrink-0 bg-stadium-black/90 px-8 py-3 rounded-xl border border-slate-800 shadow-[inset_0_1px_10px_rgba(230,95,0,0.02)] min-w-[200px]">
+                <div className="flex items-center gap-6 font-athletic">
+                  <span 
+                    className="text-5xl font-extrabold tracking-wider transition-all duration-500 glow-text-orange"
+                    style={{ color: homeColorInfo.primary }}
+                  >
                     {homeScore}
                   </span>
-                  <span className="text-slate-600 text-2xl font-light font-sans">:</span>
-                  <span className="text-4xl font-extrabold tracking-tighter text-neon-purple font-bold">
+                  <span className="text-slate-700 text-2xl font-light font-sans">:</span>
+                  <span 
+                    className="text-5xl font-extrabold tracking-wider transition-all duration-500 glow-text-amber"
+                    style={{ color: awayColorInfo.primary }}
+                  >
                     {awayScore}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
-                  <Clock className="w-3.5 h-3.5 text-neon-blue" />
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 px-3 py-1 rounded border border-slate-800 font-athletic">
+                  <Clock className="w-3.5 h-3.5 text-court-orange" />
                   <span>{getQuarterText(period)}</span>
                   <span className="text-slate-700 font-light">|</span>
-                  <span className="font-mono text-slate-200">{clockText}</span>
+                  <span className="scoreboard-digital text-court-orange">{clockText}</span>
                 </div>
               </div>
 
               {/* Away Team */}
               <div className="flex items-center gap-4 w-full md:w-auto justify-start md:justify-end">
                 {possession === -1 && (
-                  <span className="w-3.5 h-3.5 bg-neon-purple rounded-full glow-border-purple animate-pulse" title="Possession" />
+                  <span 
+                    className="w-3.5 h-3.5 rounded-full animate-pulse transition-all duration-500" 
+                    style={{ 
+                      backgroundColor: awayColorInfo.primary,
+                      boxShadow: `0 0 14px ${awayColorInfo.primary}`
+                    }}
+                    title="Possession" 
+                  />
                 )}
                 <div className="text-left">
-                  <h2 className="text-2xl font-black tracking-wider uppercase text-slate-100">
+                  <h2 
+                    className="text-3xl font-athletic font-black tracking-widest uppercase transition-all duration-500"
+                    style={{ color: awayColorInfo.primary }}
+                  >
                     {awayTeam}
                   </h2>
                   <span className="text-[10px] text-slate-400 font-semibold tracking-wider font-mono">
@@ -113,7 +160,7 @@ export default function Dashboard() {
             </>
           ) : (
             <div className="w-full flex items-center justify-center gap-3 py-4 text-slate-400 text-sm font-medium">
-              <AlertCircle className="w-5 h-5 text-neon-blue" />
+              <AlertCircle className="w-5 h-5 text-court-orange" />
               <span>Select an NBA game match from the sidebar to activate the scoreboard feed.</span>
             </div>
           )}
