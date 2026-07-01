@@ -106,11 +106,11 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
   return (
     <div
       id="sim-control-panel"
-      className="p-6 rounded-2xl glass-panel-glow-cyan flex flex-col md:flex-row md:items-center justify-between gap-6"
+      className="p-6 rounded-2xl stadium-panel border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-stadium-charcoal/80"
     >
       <div className="space-y-1">
-        <h3 className="text-base font-bold tracking-wide text-slate-100 flex items-center gap-2 uppercase">
-          <Gauge className="w-4.5 h-4.5 text-neon-blue" />
+        <h3 className="text-base font-bold tracking-wider text-slate-100 flex items-center gap-2 uppercase font-athletic">
+          <Gauge className="w-4.5 h-4.5 text-court-orange" />
           Simulation Control Room
         </h3>
         <p className="text-xs text-slate-400 font-light leading-relaxed">
@@ -119,7 +119,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
         
         {status.game_id && (
           <div className="pt-1.5 flex items-center gap-2">
-            <span className="text-[10px] bg-slate-900 border border-slate-800 text-neon-blue font-mono px-2 py-0.5 rounded-md">
+            <span className="text-[10px] bg-slate-900 border border-slate-800 text-court-orange font-mono px-2 py-0.5 rounded-md">
               Loaded: {status.game_id}
             </span>
             <span className="text-[10px] text-slate-400 font-medium">
@@ -131,7 +131,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
         {/* Main controls */}
-        <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl p-1 gap-1">
+        <div className="flex items-center bg-stadium-black/80 border border-slate-800 rounded-xl p-1 gap-1">
           {(!status.is_running || !isCurrentGameActive) ? (
             <button
               id="btn-play"
@@ -143,7 +143,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
                   sendControl("start");
                 }
               }}
-              className="px-4 py-2 bg-neon-blue/15 hover:bg-neon-blue/30 text-neon-blue disabled:opacity-30 disabled:hover:bg-neon-blue/15 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 font-semibold text-xs tracking-wider uppercase border border-neon-blue/10"
+              className="px-4 py-2 bg-court-orange/15 hover:bg-court-orange/30 text-court-orange disabled:opacity-30 disabled:hover:bg-court-orange/15 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 font-bold text-xs tracking-wider uppercase border border-court-orange/10 font-athletic"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>{isCurrentGameActive ? "Resume" : "Start"}</span>
@@ -153,7 +153,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
               id="btn-pause"
               disabled={loading}
               onClick={() => sendControl("pause")}
-              className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 font-semibold text-xs tracking-wider uppercase border border-amber-500/10"
+              className="px-4 py-2 bg-court-amber/10 hover:bg-court-amber/20 text-court-amber rounded-lg flex items-center justify-center gap-2 transition-all duration-300 font-bold text-xs tracking-wider uppercase border border-court-amber/10 font-athletic"
             >
               <Pause className="w-3.5 h-3.5 fill-current" />
               <span>Pause</span>
@@ -164,7 +164,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
             id="btn-stop"
             disabled={loading || !status.game_id}
             onClick={() => sendControl("stop")}
-            className="p-2 bg-slate-900/40 hover:bg-neon-red/10 text-slate-400 hover:text-neon-red rounded-lg transition-all duration-300 border border-transparent hover:border-neon-red/10"
+            className="p-2 bg-slate-900/40 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 rounded-lg transition-all duration-300 border border-transparent hover:border-rose-500/10"
             title="Stop & Clear"
           >
             <Square className="w-4 h-4 fill-current" />
@@ -173,13 +173,13 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
 
         {/* Speed Adjustment */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider hidden sm:inline">Speed:</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline font-athletic">Speed:</span>
           <select
             id="speed-select"
             value={status.speed_multiplier}
             disabled={loading || !status.game_id}
             onChange={(e) => sendControl("speed", { speed: parseFloat(e.target.value) })}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-200 outline-none focus:border-neon-blue/40 transition-all duration-300"
+            className="bg-stadium-black border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-200 outline-none focus:border-court-orange/40 transition-all duration-300"
           >
             {speeds.map((s) => (
               <option key={s} value={s}>
@@ -191,7 +191,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
       </div>
 
       {error && (
-        <div className="w-full flex items-center gap-2 p-3 bg-neon-red/10 border border-neon-red/20 rounded-xl text-xs text-neon-red mt-2">
+        <div className="w-full flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 mt-2">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
