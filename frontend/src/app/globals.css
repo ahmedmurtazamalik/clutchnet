@@ -1,19 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-slate-950: #020617;
-  --color-slate-900: #0f172a;
-  --color-slate-800: #1e293b;
-  --color-slate-700: #334155;
-  --color-neon-blue: #06b6d4;
-  --color-neon-purple: #d946ef;
-  --color-neon-green: #10b981;
-  --color-neon-red: #ef4444;
+  --color-slate-950: #09090b;
+  --color-slate-900: #141417;
+  --color-slate-800: #202024;
+  --color-slate-700: #2e2e33;
+  --color-slate-600: #44444c;
+  --color-court-orange: #e65f00;
+  --color-court-darkorange: #b34a00;
+  --color-court-cream: #fffbeb;
+  --color-court-amber: #f59e0b;
+  --color-stadium-black: #050506;
+  --color-stadium-charcoal: #111113;
+  --color-stadium-gray: #1b1b1e;
+  --color-stadium-lightgray: #2c2c31;
 }
 
 :root {
-  --background: #020617;
-  --foreground: #f8fafc;
+  --background: #09090b;
+  --foreground: #f4f4f5;
 }
 
 body {
@@ -23,55 +28,91 @@ body {
   overflow-x: hidden;
 }
 
-/* Glassmorphism utility */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Athletic condensed typography utility */
+.font-athletic {
+  font-family: var(--font-barlow-condensed), 'Barlow Condensed', 'Impact', sans-serif;
 }
 
-.glass-panel-glow-cyan {
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(6, 182, 212, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(6, 182, 212, 0.05);
+/* Court Grid overlay */
+.court-grid {
+  background-size: 60px 60px;
+  background-image: 
+    linear-gradient(to right, rgba(230, 95, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(230, 95, 0, 0.02) 1px, transparent 1px);
 }
 
-.glass-panel-glow-purple {
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(217, 70, 239, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(217, 70, 239, 0.05);
+/* Hardwood stadium board look */
+.stadium-panel {
+  background: #111113;
+  border: 1px solid #202024;
+}
+
+.stadium-panel-glow {
+  background: #151518;
+  border: 1px solid rgba(230, 95, 0, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(230, 95, 0, 0.03);
 }
 
 /* Glow effects */
-.glow-text-cyan {
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+.glow-text-orange {
+  text-shadow: 0 0 10px rgba(230, 95, 0, 0.5);
 }
 
-.glow-text-purple {
-  text-shadow: 0 0 10px rgba(217, 70, 239, 0.5);
+.glow-text-amber {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
 }
 
-.glow-border-cyan {
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+.glow-border-orange {
+  box-shadow: 0 0 15px rgba(230, 95, 0, 0.2);
 }
 
-.glow-border-purple {
-  box-shadow: 0 0 15px rgba(217, 70, 239, 0.25);
+.glow-border-secondary {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
 }
 
-/* Horizontal line custom chart grid styling */
-.recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line {
-  stroke: rgba(255, 255, 255, 0.05);
+/* Ticket stub styles */
+.ticket-card {
+  position: relative;
+  background: #131316;
+  border: 1px solid #202024;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
-.recharts-curve {
-  filter: drop-shadow(0px 2px 8px rgba(6, 182, 212, 0.3));
+.ticket-card::before, .ticket-card::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #09090b; /* Matches sidebar/page background */
+  border-radius: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.ticket-card::before {
+  left: -6px;
+  box-shadow: inset -1px 0 0 0 #202024;
+}
+
+.ticket-card::after {
+  right: -6px;
+  box-shadow: inset 1px 0 0 0 #202024;
+}
+
+.ticket-stub-line {
+  border-top: 1px dashed #202024;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+/* Digital scoreboard segment clock simulation */
+.scoreboard-digital {
+  font-family: var(--font-barlow-condensed), 'Barlow Condensed', monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }
 
 /* Custom scrollbars */
@@ -81,16 +122,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.3);
+  background: #09090b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: #202024;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #2e2e33;
 }
 
 /* Pulse keyframes */
@@ -100,7 +141,7 @@ body {
   }
   50% {
     opacity: 1;
-    transform: scale(1.05);
+    transform: scale(1.03);
   }
 }
 
