@@ -60,13 +60,13 @@ export function ImpactTicker({ plays }: ImpactTickerProps) {
   return (
     <div
       id="impact-ticker"
-      className="glass-panel flex flex-col rounded-2xl border border-slate-800 h-full overflow-hidden"
+      className="stadium-panel flex flex-col rounded-2xl border border-slate-800 bg-stadium-charcoal/80 h-full overflow-hidden"
     >
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
+      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-stadium-black/50">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-neon-blue" />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+          <Sparkles className="w-4 h-4 text-court-orange" />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-200 font-athletic">
             Play Impact Ticker
           </span>
         </div>
@@ -94,14 +94,14 @@ export function ImpactTicker({ plays }: ImpactTickerProps) {
                 id={`play-item-${play.eventnum}`}
                 className={`p-3 rounded-xl border transition-all duration-300 ${
                   isHighImpact
-                    ? "bg-slate-900/80 border-slate-700/60 shadow-[inset_0_1px_10px_rgba(255,255,255,0.02)]"
+                    ? "bg-stadium-black/90 border-court-orange/30 shadow-[inset_0_1px_10px_rgba(230,95,0,0.01)]"
                     : "bg-slate-900/30 border-slate-800/80 hover:border-slate-800"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3 mb-1.5">
                   {/* Time metadata */}
                   <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 font-medium">
-                    <span className="bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-neon-blue/80 font-bold">
+                    <span className="bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-court-orange font-bold font-athletic uppercase">
                       {getQuarterText(play.period)}
                     </span>
                     <span>{formatTime(play.seconds_remaining_in_period)}</span>
@@ -126,7 +126,7 @@ export function ImpactTicker({ plays }: ImpactTickerProps) {
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-200 leading-normal tracking-wide font-light">
+                <p className="text-xs text-slate-300 leading-normal tracking-wide font-light">
                   {play.description || "Play state change event recorded."}
                 </p>
               </div>
