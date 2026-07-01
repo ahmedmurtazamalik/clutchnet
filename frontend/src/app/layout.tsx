@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit, Inter } from "next/font/google";
+import { Outfit, Inter, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -12,6 +12,12 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -32,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${outfit.variable} ${inter.variable} ${barlowCondensed.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-neon-blue/30 selection:text-white">
         {children}
       </body>
