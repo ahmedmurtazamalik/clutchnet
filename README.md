@@ -5,63 +5,150 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-WebSockets-009688.svg)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-React-000000.svg)](https://nextjs.org/)
 
-## Overview
-**ClutchNet** is an end-to-end machine learning platform that calculates and visualizes live NBA win probabilities. By bridging deep learning with event-driven web architecture, the system consumes live play-by-play data, performs sub-second inferences using a custom PyTorch neural network, and streams the shifting game dynamics to a high-performance Next.js dashboard via WebSockets.
+**ClutchNet** is an end-to-end machine learning and real-time data streaming platform that calculates and visualizes live NBA win probabilities. By processing historical play-by-play datasets using a custom PyTorch neural network, the system performs sub-second inference on current game configurations and streams dynamic updates to a high-performance, responsive Next.js sports broadcast dashboard via WebSockets.
 
-This project goes beyond static data science notebooks by demonstrating a complete MLOps lifecycle: from historical data ingestion and feature engineering to low-latency model serving and real-time frontend rendering.
+This codebase serves as a full-stack MLOps template, bridging offline deep learning training with a low-latency, event-driven online streaming environment.
 
-## Core Features
-* **Live Inference Engine:** Parses live NBA game feeds, constructs feature vectors on the fly, and generates win probabilities in milliseconds.
-* **The Pulse Chart:** A dynamic, Recharts-powered interactive dashboard that draws the win probability curve in real-time. The UI features contextual gradients that seamlessly shift colors based on which team is favored.
-* **Clutch Impact Ticker:** A live play-by-play feed that calculates and displays the specific Delta (Δ) of every play. (e.g., highlighting exactly how much a step-back 3-pointer shifted the mathematical momentum of the game).
-* **Historical Replay (Demo Mode):** A built-in simulation engine that allows users to replay iconic historical games (e.g., 2016 Finals Game 7) at accelerated speeds to observe the model's performance and dashboard animations without waiting for a live game.
+---
 
-## System Architecture
+## 🚀 Core Platform Features
 
-The architecture is divided into two distinct pipelines to separate the heavy computational training from the low-latency streaming environment.
+1. **Multi-Seed Ensemble PyTorch Model:**
+   - Leverages a deep Multilayer Perceptron network with LayerNorm and Dropout layers trained across an ensemble of 5 distinct random seeds (42, 123, 456, 789, 999).
+   - Achieves **77.26% test accuracy** and a **0.8618 ROC-AUC score**, with verified model calibration mapping predicted probabilities close to empirical outcomes.
+2. **Arena Scoreboard & Court-Grid UI:**
+   - Designed around a premium, immersive dark basketball court theme with soft gridlines and stadium jumbotron style panels.
+   - Utilizes condensed, high-visibility athletic typography (`Barlow Condensed`) mimicking modern NBA arena displays.
+3. **Dynamic Team-Colored Theme Glows:**
+   - Detects the active team abbreviations (`BOS`, `LAL`, `CHI`, etc.) and dynamically shifts accent lines, possession indicators, and card glows to match official brand colors.
+4. **Interactive Probability Pulse Curve:**
+   - Plots a horizontally scrolling area chart using Recharts. 
+   - Uses dual linear gradients for the line stroke and area fill, transitioning color dynamically from the home team's color (when home is winning) to the visitor team's color (when visitors lead).
+5. **Physical Ticket Stub Game Cards:**
+   - Renders available historical games in the sidebar with notch cutouts and dashed tear-off lines representing physical admission tickets.
+6. **Accelerated Historical Replay (Demo Mode):**
+   - An integrated simulation controller running on FastAPI allows replaying any of the 13,000+ cached regular season or synthetic games at speeds ranging from 1x to 100x.
+7. **No-Active-Subscription Sleep Mode:**
+   - The live polling worker automatically suspends external API queries when no frontend clients are actively listening, minimizing resource consumption.
 
-### 1. Offline MLOps Pipeline (Training)
-The foundation of the model relies on a robust data ingestion pipeline that interfaces with the `nba_api`. The system scrapes, cleans, and structures over a decade of historical play-by-play logs and box scores. This raw data is transformed into a rich time-series dataset. A Feed-Forward Neural Network (built in PyTorch) is then trained on these millions of micro-game states to accurately map game contexts to final outcomes. The optimized weights are serialized for deployment.
+---
 
-### 2. Online Inference & Streaming Engine
-During a game, a FastAPI background worker continuously polls live NBA endpoints. Upon detecting a new play, the backend constructs a snapshot vector matching the training architecture, passes it through the in-memory PyTorch model, and broadcasts the resulting probability via WebSockets. The Next.js client intercepts these asynchronous events, animating the UI updates smoothly without requiring page reloads.
+## 🏗️ System Architecture
 
-## Machine Learning Approach & Feature Engineering
-To accurately capture the complex dynamics of a basketball game, the neural network evaluates a comprehensive snapshot of the game state at any given second. The primary features processed by the model include:
+```mermaid
+graph TD
+    subgraph Offline Pipeline [Offline MLOps Pipeline]
+        A[nba_api Scraper] -->|Raw Play Logs| B[(SQLite Cache)]
+        B -->|Chronological Parsing| C[Feature preprocessor]
+        C -->|Train/Val/Test Splits| D[train_features.csv]
+        D -->|5-Seed Ensemble| E[PyTorch winProbabilityNet]
+        E -->|Export Weights & Scale Parameters| F[Model Assets weights.pt, scaler.json]
+    end
 
-* **Temporal Context:** Time remaining in the quarter, time remaining in the game.
-* **Score Dynamics:** Current score differential, home score, away score.
-* **Possession Mechanics:** Binary possession indicators and shot clock pressure.
-* **Resource Constraints:** Remaining timeouts and team foul penalty states.
-* **Baseline Strength:** Pre-game team Elo ratings or season net ratings to anchor the probability prior to tip-off.
+    subgraph Online Serving [Online Serving Engine]
+        F -->|In-Memory Load| G[FastAPI Server]
+        H[Live NBA CDN / Replay Simulator] -->|JSON State Snapshot| I[Predictor class]
+        G -->|Inference vector| I
+        I -->|Win Probability float| J[WebSocket Manager]
+        J -->|Broadcast Frame| K[Next.js Client Dashboard]
+    end
+```
 
-## Technology Stack
+---
 
-**Backend & AI**
-* **Machine Learning:** Python, PyTorch, Pandas, Scikit-Learn
-* **Data Sourcing:** `nba_api`
-* **Server:** FastAPI, Uvicorn, Python AsyncIO, WebSockets
+## 📊 Machine Learning Features (19 Inputs)
 
-**Frontend**
-* **Framework:** Next.js (React), TypeScript
-* **Styling:** TailwindCSS
-* **Visualization:** Recharts / D3.js
+To calculate probabilities, the PyTorch model evaluates the game configuration at any second based on 19 scaled inputs:
+- **Temporal Context:** `period`, `seconds_remaining_in_period`, `seconds_remaining_in_game`, `is_overtime`.
+- **Score Dynamics:** `home_score`, `away_score`, `score_margin`, `largest_lead`, `lead_changes`.
+- **Possession Mechanics:** `possession` (1: Home, -1: Away, 0: Neutral).
+- **Resource Constraints:** `home_timeouts_remaining`, `away_timeouts_remaining`, `home_fouls`, `away_fouls` (penalty counters).
+- **Baseline Strength:** Pregame ELO ratings (`home_pregame_rating`, `away_pregame_rating`) calculated dynamically using seasonal rolling statistics.
+- **Momentum Context:** `home_pts_last_3_min`, `away_pts_last_3_min` (sliding lookback window).
 
-## Running the Project Locally
+---
+
+## 📁 Repository Structure
+
+```
+├── backend
+│   ├── data
+│   │   ├── raw/               # SQLite database cache (13,224 games)
+│   │   ├── processed/         # Train/Val/Test CSV features
+│   │   ├── scraper.py         # Handles NBA API ingestion and mock generators
+│   │   ├── bulk_scraper.py    # Multi-season robust scraping script
+│   │   └── preprocessor.py    # Rolling Elo, timeout, foul, and momentum engineering
+│   ├── model
+│   │   ├── network.py         # PyTorch WinProbabilityNet layout
+│   │   ├── train.py           # Multi-seed optimizer and evaluator script
+│   │   ├── predictor.py       # Dependency-free scaled inference wrapper
+│   │   └── weights.pt         # Ensemble model weights
+│   ├── main.py                # FastAPI HTTP routing & WS servers
+│   ├── ws_manager.py          # WebSocket client registers and broadcasters
+│   ├── simulator.py           # Accelerated replay event loops
+│   ├── live_poller.py         # Real-time CDN polling worker
+│   └── tests/                 # Unit test suite (Serving, Predictor, Preprocessor)
+└── frontend
+    ├── src
+    │   ├── app/               # Next.js App Router (Scoreboard, main page layout)
+    │   ├── components/        # UI (PulseChart, Sidebar, ControlPanel, MomentumBar, Ticker)
+    │   ├── hooks/             # WebSocket connections state hook
+    │   └── utils/             # TeamColors utility configuration mappings
+    └── package.json           # Tailwind CSS v4 & Next.js details
+```
+
+---
+
+## ⚙️ Running the Project Locally
 
 ### Prerequisites
-* Python 3.10+
-* Node.js 18+
+- Python 3.10+
+- Node.js 18+
 
 ### Setup Instructions
-1. **Clone the repository:**
-   `git clone https://github.com/yourusername/ClutchNet.git`
-2. **Setup the Python Backend:**
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/ahmedmurtazamalik/clutchnet.git
+   cd clutchnet
+   ```
+
+2. **Initialize the Python Backend:**
+   Create a virtual environment, install dependencies, and start the FastAPI uvicorn server:
+   ```bash
    cd backend
+   python -m venv .venv
+   # Windows Activation:
+   .\.venv\Scripts\activate
+   # macOS/Linux Activation:
+   source .venv/bin/activate
+   
    pip install -r requirements.txt
    uvicorn main:app --reload
-3. **Setup the Next.js Frontend:**
+   ```
+   *The FastAPI server will be active at `http://127.0.0.1:8000`.*
+
+3. **Initialize the Next.js Frontend:**
+   Open a separate terminal window and launch the dev server:
+   ```bash
    cd frontend
    npm install
    npm run dev
-4. **Access the Application:** Open `http://localhost:3000` in your browser. Use the UI toggle to activate "Demo Mode" to see the live data stream in action.
+   ```
+   *The Next.js dashboard will be active at `http://localhost:3000`.*
+
+4. **Verify Correctness:**
+   To run the complete suite of preprocessor, model, and REST/WebSocket integration unit tests, navigate to the `backend` folder with your virtual environment active and run:
+   ```bash
+   python -m unittest discover -s tests
+   ```
+
+---
+
+## 🎨 Visual Redesign Details (Before vs. After)
+
+A comprehensive redesign has been implemented to replace generic tech layouts with an authentic sports broadcast interface:
+* **The "Jumbotron" Scoreboard:** The top banner layout is modeled on an arena center-hung display with retro scoreboard digital timers.
+* **The Hardwood Floor:** A custom court-grid line shader is layered onto a deep charcoal mesh background.
+* **Admission Tickets:** Matchups in the sidebar list are styled as physical tickets complete with circular coupon border cuts and dashed separation lines.
+* **Tug-of-War Momentum:** A visual progress display shifts dynamically using playing team colors to represent points scored during the last 3 minutes of clock time.
