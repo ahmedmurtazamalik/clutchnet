@@ -29,7 +29,8 @@ export function Sidebar({ selectedGameId, onSelectGame, connectionStatus }: Side
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch("http://localhost:8000/api/games");
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(`${backendUrl}/api/games`);
         if (!res.ok) {
           throw new Error(`Error fetching games: ${res.statusText}`);
         }

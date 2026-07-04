@@ -31,7 +31,8 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const res = await fetch("http://localhost:8000/api/simulator/status");
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(`${backendUrl}/api/simulator/status`);
         if (res.ok) {
           const data = await res.json();
           setStatus(data);
@@ -62,7 +63,8 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
         ...extraParams
       };
 
-      const res = await fetch("http://localhost:8000/api/simulator/control", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/api/simulator/control`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,7 +85,7 @@ export function ControlPanel({ gameId, onSimulationUpdate }: ControlPanelProps) 
       }
       
       // Query full status after action
-      const statusRes = await fetch("http://localhost:8000/api/simulator/status");
+      const statusRes = await fetch(`${backendUrl}/api/simulator/status`);
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setStatus(statusData);

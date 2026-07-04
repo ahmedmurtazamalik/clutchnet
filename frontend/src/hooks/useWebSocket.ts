@@ -53,7 +53,10 @@ export function useWebSocket(gameId: string | null) {
     setLatestEvent(null);
     setStatus("connecting");
 
-    const wsUrl = `ws://localhost:8000/ws/live-game/${gameId}`;
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+    const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
+    const cleanBackendUrl = backendUrl.replace(/^https?:\/\//, "");
+    const wsUrl = `${wsProtocol}://${cleanBackendUrl}/ws/live-game/${gameId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

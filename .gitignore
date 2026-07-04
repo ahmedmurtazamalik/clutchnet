@@ -48,3 +48,7 @@ yarn-error.log*
 backend/model/latest_elos.json
 backend/model/scaler.json
 backend/model/train_results.txt
+
+# Deployment Folder & Pruned Databases
+hf_deploy/
+backend/data/raw/*_pruned.db
