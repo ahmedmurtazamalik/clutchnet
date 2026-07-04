@@ -8,3 +8,4 @@ uvicorn
 websockets
 requests
 pydantic
+httpx
