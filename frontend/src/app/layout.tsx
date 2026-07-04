@@ -38,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${inter.variable} ${barlowCondensed.variable} h-full antialiased`}>
+    <html lang="en" className={`${outfit.variable} ${inter.variable} ${barlowCondensed.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-neon-blue/30 selection:text-white">
         {children}
       </body>

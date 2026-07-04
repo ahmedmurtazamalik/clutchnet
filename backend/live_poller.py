@@ -62,6 +62,11 @@ class LiveGamePoller:
         async with httpx.AsyncClient(headers=HEADERS, timeout=10.0) as client:
             while self.is_running:
                 try:
+                    # Skip querying if no clients are connected to save bandwidth and avoid CDN blocks
+                    if not self.ws_manager.active_connections:
+                        await asyncio.sleep(self.poll_interval)
+                        continue
+
                     # 1. Fetch the scoreboard to find in-progress games
                     response = await client.get(SCOREBOARD_URL)
                     if response.status_code != 200:

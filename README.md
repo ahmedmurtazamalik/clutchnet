@@ -114,17 +114,20 @@ To calculate probabilities, the PyTorch model evaluates the game configuration a
    ```
 
 2. **Initialize the Python Backend:**
-   Create a virtual environment, install dependencies, and start the FastAPI uvicorn server:
+   Create a virtual environment, install dependencies, and start the FastAPI uvicorn server from the project root:
    ```bash
+   # Create virtual environment in backend folder
    cd backend
    python -m venv .venv
-   # Windows Activation:
-   .\.venv\Scripts\activate
-   # macOS/Linux Activation:
-   source .venv/bin/activate
+   cd ..
    
-   pip install -r requirements.txt
-   uvicorn main:app --reload
+   # Windows Activation & Launch:
+   .\backend\.venv\Scripts\activate
+   uvicorn backend.main:app --reload
+   
+   # macOS/Linux Activation & Launch:
+   source backend/.venv/bin/activate
+   uvicorn backend.main:app --reload
    ```
    *The FastAPI server will be active at `http://127.0.0.1:8000`.*
 
@@ -138,9 +141,9 @@ To calculate probabilities, the PyTorch model evaluates the game configuration a
    *The Next.js dashboard will be active at `http://localhost:3000`.*
 
 4. **Verify Correctness:**
-   To run the complete suite of preprocessor, model, and REST/WebSocket integration unit tests, navigate to the `backend` folder with your virtual environment active and run:
+   To run the complete suite of preprocessor, model, and REST/WebSocket integration unit tests, run the following command from the project root directory:
    ```bash
-   python -m unittest discover -s tests
+   python -m unittest discover -s backend/tests
    ```
 
 ---
