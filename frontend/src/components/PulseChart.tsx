@@ -131,17 +131,17 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
-              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+              margin={{ top: 20, right: 10, left: -25, bottom: 20 }}
             >
               <defs>
-                <linearGradient id="probabilityGlow" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="probabilityGlow" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
                   <stop offset="0%" stopColor={homeColorInfo.primary} stopOpacity={0.35} />
                   <stop offset="45%" stopColor={homeColorInfo.primary} stopOpacity={0.06} />
                   <stop offset="50%" stopColor="#18181b" stopOpacity={0.02} />
                   <stop offset="55%" stopColor={awayColorInfo.primary} stopOpacity={0.06} />
                   <stop offset="100%" stopColor={awayColorInfo.primary} stopOpacity={0.35} />
                 </linearGradient>
-                <linearGradient id="strokeGradient" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="strokeGradient" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
                   <stop offset="0%" stopColor={homeColorInfo.primary} />
                   <stop offset="48%" stopColor={homeColorInfo.primary} />
                   <stop offset="50%" stopColor="#71717a" />
