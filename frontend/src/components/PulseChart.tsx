@@ -31,25 +31,75 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
     awayScore: play.away_score,
     description: play.description,
     period: play.period,
+    secondsRemainingInPeriod: play.seconds_remaining_in_period,
     displayTime: `Q${play.period} ${Math.floor(play.seconds_remaining_in_period / 60)}:${Math.floor(
       play.seconds_remaining_in_period % 60
     )
       .toString()
       .padStart(2, "0")}`,
   }));
-  
-  // Find indices where quarters start to use as custom ticks
-  const ticks: number[] = [];
-  let currentPeriod = 0;
-  chartData.forEach((d) => {
-    if (d.period !== currentPeriod) {
-      ticks.push(d.index);
-      currentPeriod = d.period;
-    }
-  });
 
   const homeColorInfo = getTeamColorInfo(homeTeam);
   const awayColorInfo = getTeamColorInfo(awayTeam);
+
+  // Determine if the game simulation is completed
+  const isFinished = plays.some((p) => p.is_finished);
+
+  // Calculate dynamic live probabilities
+  const latestPlay = plays[plays.length - 1];
+  const homeProb = latestPlay ? latestPlay.win_probability * 100 : 50;
+  const awayProb = 100 - homeProb;
+
+  // Build custom X-axis ticks for time remaining intervals
+  const ticks: number[] = [];
+  const tickLabels: Record<number, string> = {};
+
+  if (chartData.length > 0) {
+    const periods: Record<number, typeof chartData> = {};
+    chartData.forEach((d) => {
+      if (!periods[d.period]) {
+        periods[d.period] = [];
+      }
+      periods[d.period].push(d);
+    });
+
+    Object.keys(periods).forEach((pStr) => {
+      const p = parseInt(pStr);
+      const pData = periods[p];
+      if (pData.length === 0) return;
+
+      const targets = [720, 480, 240, 120, 0];
+
+      targets.forEach((target) => {
+        let closest = pData[0];
+        let minDiff = Math.abs(closest.secondsRemainingInPeriod - target);
+
+        pData.forEach((d) => {
+          const diff = Math.abs(d.secondsRemainingInPeriod - target);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = d;
+          }
+        });
+
+        if (minDiff < 30) {
+          if (!ticks.includes(closest.index)) {
+            ticks.push(closest.index);
+            if (target === 720) {
+              tickLabels[closest.index] = p <= 4 ? `Q${p} 12:00` : `OT${p - 4} 5:00`;
+            } else if (target === 0) {
+              tickLabels[closest.index] = `Q${p} 0:00`;
+            } else {
+              const mins = Math.floor(target / 60);
+              tickLabels[closest.index] = `${mins}:00`;
+            }
+          }
+        }
+      });
+    });
+
+    ticks.sort((a, b) => a - b);
+  }
 
   // Tooltip custom renderer for premium style
   const CustomTooltip = ({ active, payload }: any) => {
@@ -107,18 +157,59 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
             Live win probability updates. The chart splits at the <strong>50% Toss-Up line</strong>: area fills <strong>upward</strong> (increasing to 100% at the top) for {homeColorInfo.name}, and <strong>downward</strong> (increasing to 100% at the bottom) for {awayColorInfo.name}.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider font-athletic">
-          <div className="flex items-center gap-1.5" style={{ color: homeColorInfo.primary }}>
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: homeColorInfo.primary }} />
-            <span>{homeTeam || "HOME"} favored (&gt;50%)</span>
+        <div className="flex flex-col items-end gap-1.5">
+          {/* Status Badge */}
+          <div className="text-[9px] px-2 py-0.5 rounded font-mono font-bold tracking-wider uppercase border select-none transition-all duration-500 animate-pulse bg-slate-900 border-slate-800 text-slate-400"
+               style={{ 
+                 borderColor: isFinished ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.2)',
+                 color: isFinished ? '#10b981' : '#94a3b8',
+                 backgroundColor: isFinished ? 'rgba(16, 185, 129, 0.05)' : 'rgba(148, 163, 184, 0.05)'
+               }}>
+            {isFinished ? "● Simulation Complete" : "○ Replaying Live Feed"}
           </div>
-          <span className="text-slate-700">|</span>
-          <div className="flex items-center gap-1.5" style={{ color: awayColorInfo.primary }}>
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: awayColorInfo.primary }} />
-            <span>{awayTeam || "AWAY"} favored (&lt;50%)</span>
+          {/* Legends */}
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider font-athletic">
+            <div className="flex items-center gap-1.5" style={{ color: homeColorInfo.primary }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: homeColorInfo.primary }} />
+              <span>{homeTeam || "HOME"} favored (&gt;50%)</span>
+            </div>
+            <span className="text-slate-700">|</span>
+            <div className="flex items-center gap-1.5" style={{ color: awayColorInfo.primary }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: awayColorInfo.primary }} />
+              <span>{awayTeam || "AWAY"} favored (&lt;50%)</span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Live Probability Widget */}
+      {plays.length > 0 && (
+        <div className="bg-stadium-black/50 border border-slate-900/80 rounded-xl p-3 flex items-center justify-between gap-4 select-none">
+          {/* Home Team Prob */}
+          <div className="flex-1 flex items-center justify-end gap-3 pr-4 border-r border-slate-800">
+            <span className="text-xs font-mono font-medium text-slate-400 uppercase hidden sm:inline">{homeColorInfo.name}</span>
+            <span className="text-xs font-mono font-medium text-slate-400 uppercase sm:hidden">{homeTeam}</span>
+            <span className="text-xl sm:text-2xl font-athletic font-black tracking-wide" style={{ color: homeColorInfo.primary }}>
+              {homeProb.toFixed(1)}%
+            </span>
+          </div>
+
+          {/* VS Divider / Matchup Status */}
+          <div className="flex flex-col items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold tracking-widest text-slate-600 uppercase font-athletic">Win Prob</span>
+            <span className="text-xs font-mono font-bold text-slate-500">{isFinished ? "FINAL" : "LIVE"}</span>
+          </div>
+
+          {/* Away Team Prob */}
+          <div className="flex-1 flex items-center justify-start gap-3 pl-4">
+            <span className="text-xl sm:text-2xl font-athletic font-black tracking-wide" style={{ color: awayColorInfo.primary }}>
+              {awayProb.toFixed(1)}%
+            </span>
+            <span className="text-xs font-mono font-medium text-slate-400 uppercase hidden sm:inline">{awayColorInfo.name}</span>
+            <span className="text-xs font-mono font-medium text-slate-400 uppercase sm:hidden">{awayTeam}</span>
+          </div>
+        </div>
+      )}
 
       {/* Chart container */}
       <div className="h-72 w-full relative pt-2">
@@ -134,6 +225,7 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               margin={{ top: 20, right: 10, left: -25, bottom: 20 }}
             >
               <defs>
+                {/* Active gradients */}
                 <linearGradient id="probabilityGlow" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
                   <stop offset="0%" stopColor={homeColorInfo.primary} stopOpacity={0.35} />
                   <stop offset="45%" stopColor={homeColorInfo.primary} stopOpacity={0.06} />
@@ -148,6 +240,17 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
                   <stop offset="52%" stopColor={awayColorInfo.primary} />
                   <stop offset="100%" stopColor={awayColorInfo.primary} />
                 </linearGradient>
+                {/* Neutral/Streaming gradients */}
+                <linearGradient id="neutralGlow" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#64748b" stopOpacity={0.15} />
+                  <stop offset="50%" stopColor="#18181b" stopOpacity={0.02} />
+                  <stop offset="100%" stopColor="#64748b" stopOpacity={0.15} />
+                </linearGradient>
+                <linearGradient id="neutralStroke" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#cbd5e1" />
+                  <stop offset="50%" stopColor="#64748b" />
+                  <stop offset="100%" stopColor="#cbd5e1" />
+                </linearGradient>
               </defs>
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -155,16 +258,12 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               <XAxis
                 dataKey="index"
                 ticks={ticks}
-                tickFormatter={(idx) => {
-                  const dataPoint = chartData[idx];
-                  if (!dataPoint) return "";
-                  if (dataPoint.period <= 4) return `Q${dataPoint.period}`;
-                  return `OT${dataPoint.period - 4}`;
-                }}
+                tickFormatter={(idx) => tickLabels[idx] || ""}
                 axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
                 tickLine={false}
+                minTickGap={20}
                 style={{
-                  fontSize: "9px",
+                  fontSize: "8px",
                   fill: "rgba(148, 163, 184, 0.5)",
                   fontFamily: "var(--font-inter)",
                 }}
@@ -205,9 +304,9 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               <Area
                 type="monotone"
                 dataKey="probability"
-                stroke="url(#strokeGradient)"
+                stroke={isFinished ? "url(#strokeGradient)" : "url(#neutralStroke)"}
                 strokeWidth={2.5}
-                fill="url(#probabilityGlow)"
+                fill={isFinished ? "url(#probabilityGlow)" : "url(#neutralGlow)"}
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0, fill: "#ffffff" }}
                 baseValue={50}
