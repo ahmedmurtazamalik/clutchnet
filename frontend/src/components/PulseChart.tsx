@@ -93,7 +93,7 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
             Win Probability Pulse Chart
           </h2>
           <p className="text-xs text-slate-400 font-light leading-relaxed">
-            Live updates mapping the home team&apos;s win expectation (0% represents complete away advantage, 100% represents home certainty).
+            Live win probability updates. The chart splits at the <strong>50% Toss-Up line</strong>: area fills <strong>upward</strong> in the Home Team&apos;s color when they lead, and <strong>downward</strong> in the Visitor Team&apos;s color when they lead.
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider font-athletic">
@@ -183,6 +183,7 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
                 fill="url(#probabilityGlow)"
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0, fill: "#ffffff" }}
+                baseValue={50}
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -91,7 +91,10 @@ export default function Dashboard() {
                   >
                     {homeTeam}
                   </h2>
-                  <span className="text-[10px] text-slate-400 font-semibold tracking-wider font-mono">
+                  <span className="text-xs text-slate-300 font-medium tracking-wide block transition-all duration-500">
+                    {homeColorInfo.name}
+                  </span>
+                  <span className="text-[9px] text-slate-500 font-bold tracking-wider font-mono uppercase">
                     HOME TEAM
                   </span>
                 </div>
@@ -152,7 +155,10 @@ export default function Dashboard() {
                   >
                     {awayTeam}
                   </h2>
-                  <span className="text-[10px] text-slate-400 font-semibold tracking-wider font-mono">
+                  <span className="text-xs text-slate-300 font-medium tracking-wide block transition-all duration-500">
+                    {awayColorInfo.name}
+                  </span>
+                  <span className="text-[9px] text-slate-500 font-bold tracking-wider font-mono uppercase">
                     VISITOR TEAM
                   </span>
                 </div>

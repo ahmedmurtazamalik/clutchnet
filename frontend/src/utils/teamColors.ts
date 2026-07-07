@@ -6,36 +6,36 @@ export interface TeamColorInfo {
 }
 
 export const NBA_TEAMS: Record<string, TeamColorInfo> = {
-  BOS: { primary: "#007A33", secondary: "#BA9653", textColor: "#FFFFFF", name: "Boston Celtics" },
-  LAL: { primary: "#552583", secondary: "#FDB927", textColor: "#FDB927", name: "LA Lakers" },
-  CHI: { primary: "#C8102E", secondary: "#000000", textColor: "#FFFFFF", name: "Chicago Bulls" },
-  GSW: { primary: "#1D428A", secondary: "#FFC72C", textColor: "#FFC72C", name: "Golden State Warriors" },
-  NYK: { primary: "#006BB6", secondary: "#F58426", textColor: "#FFFFFF", name: "New York Knicks" },
-  MIA: { primary: "#98002E", secondary: "#F9A01B", textColor: "#FFFFFF", name: "Miami Heat" },
-  MIL: { primary: "#00471B", secondary: "#EEE1C6", textColor: "#EEE1C6", name: "Milwaukee Bucks" },
-  PHX: { primary: "#1D1160", secondary: "#E56020", textColor: "#FFFFFF", name: "Phoenix Suns" },
-  CLE: { primary: "#860038", secondary: "#FDBB30", textColor: "#FFFFFF", name: "Cleveland Cavaliers" },
-  PHI: { primary: "#006BB6", secondary: "#ED174C", textColor: "#FFFFFF", name: "Philadelphia 76ers" },
-  BKN: { primary: "#000000", secondary: "#FFFFFF", textColor: "#FFFFFF", name: "Brooklyn Nets" },
-  LAC: { primary: "#C8102E", secondary: "#1D428A", textColor: "#FFFFFF", name: "LA Clippers" },
-  DAL: { primary: "#00538C", secondary: "#002B5E", textColor: "#FFFFFF", name: "Dallas Mavericks" },
-  DEN: { primary: "#0E2240", secondary: "#FEC524", textColor: "#FFFFFF", name: "Denver Nuggets" },
-  SAC: { primary: "#5A2D81", secondary: "#63727A", textColor: "#FFFFFF", name: "Sacramento Kings" },
-  IND: { primary: "#002D62", secondary: "#FDBB30", textColor: "#FFFFFF", name: "Indiana Pacers" },
-  NOP: { primary: "#0C2340", secondary: "#C8102E", textColor: "#FFFFFF", name: "New Orleans Pelicans" },
-  MIN: { primary: "#0C2340", secondary: "#236192", textColor: "#FFFFFF", name: "Minnesota Timberwolves" },
-  OKC: { primary: "#007AC1", secondary: "#EF3B24", textColor: "#FFFFFF", name: "Oklahoma City Thunder" },
-  POR: { primary: "#E03A3E", secondary: "#000000", textColor: "#FFFFFF", name: "Portland Trail Blazers" },
+  BOS: { primary: "#00A94F", secondary: "#BA9653", textColor: "#FFFFFF", name: "Boston Celtics" }, // Brighter Green
+  LAL: { primary: "#FDB927", secondary: "#552583", textColor: "#552583", name: "LA Lakers" }, // Swapped to Gold Primary for readability
+  CHI: { primary: "#FF1A3D", secondary: "#000000", textColor: "#FFFFFF", name: "Chicago Bulls" }, // Brighter Red
+  GSW: { primary: "#2463E2", secondary: "#FFC72C", textColor: "#FFC72C", name: "Golden State Warriors" }, // Brighter Blue
+  NYK: { primary: "#0088EC", secondary: "#F58426", textColor: "#FFFFFF", name: "New York Knicks" }, // Brighter Blue
+  MIA: { primary: "#F9A01B", secondary: "#98002E", textColor: "#FFFFFF", name: "Miami Heat" }, // Swapped to Orange/Yellow Primary
+  MIL: { primary: "#EEE1C6", secondary: "#00471B", textColor: "#00471B", name: "Milwaukee Bucks" }, // Swapped to Cream Primary for dark background
+  PHX: { primary: "#E56020", secondary: "#1D1160", textColor: "#FFFFFF", name: "Phoenix Suns" }, // Swapped to Orange Primary for dark background
+  CLE: { primary: "#C1004F", secondary: "#FDBB30", textColor: "#FFFFFF", name: "Cleveland Cavaliers" }, // Brighter Wine/Red
+  PHI: { primary: "#0088EC", secondary: "#ED174C", textColor: "#FFFFFF", name: "Philadelphia 76ers" }, // Brighter Blue
+  BKN: { primary: "#FFFFFF", secondary: "#000000", textColor: "#000000", name: "Brooklyn Nets" }, // Swapped to White Primary for dark background
+  LAC: { primary: "#FF1A3D", secondary: "#1D428A", textColor: "#FFFFFF", name: "LA Clippers" }, // Brighter Red
+  DAL: { primary: "#007BC4", secondary: "#002B5E", textColor: "#FFFFFF", name: "Dallas Mavericks" }, // Brighter Blue
+  DEN: { primary: "#FEC524", secondary: "#0E2240", textColor: "#FFFFFF", name: "Denver Nuggets" }, // Swapped to Gold Primary
+  SAC: { primary: "#8B5CF6", secondary: "#63727A", textColor: "#FFFFFF", name: "Sacramento Kings" }, // Brighter Purple (Tailwind Violet-500)
+  IND: { primary: "#FDBB30", secondary: "#002D62", textColor: "#FFFFFF", name: "Indiana Pacers" }, // Swapped to Gold Primary
+  NOP: { primary: "#C8102E", secondary: "#0C2340", textColor: "#FFFFFF", name: "New Orleans Pelicans" }, // Swapped to Red Primary
+  MIN: { primary: "#236192", secondary: "#0C2340", textColor: "#FFFFFF", name: "Minnesota Timberwolves" }, // Swapped to Slate Blue Primary
+  OKC: { primary: "#00A1FF", secondary: "#EF3B24", textColor: "#FFFFFF", name: "Oklahoma City Thunder" }, // Brighter Blue
+  POR: { primary: "#FF1F22", secondary: "#000000", textColor: "#FFFFFF", name: "Portland Trail Blazers" }, // Brighter Red
   MEM: { primary: "#5D76A9", secondary: "#12BBF4", textColor: "#FFFFFF", name: "Memphis Grizzlies" },
-  UTA: { primary: "#002B5C", secondary: "#F9A01B", textColor: "#FFFFFF", name: "Utah Jazz" },
-  CHA: { primary: "#1D1160", secondary: "#00788C", textColor: "#FFFFFF", name: "Charlotte Hornets" },
-  ORL: { primary: "#0077C0", secondary: "#C4CED4", textColor: "#FFFFFF", name: "Orlando Magic" },
-  ATL: { primary: "#E03A3E", secondary: "#C1D32F", textColor: "#FFFFFF", name: "Atlanta Hawks" },
-  TOR: { primary: "#A11E36", secondary: "#000000", textColor: "#FFFFFF", name: "Toronto Raptors" },
-  HOU: { primary: "#CE1141", secondary: "#000000", textColor: "#FFFFFF", name: "Houston Rockets" },
-  DET: { primary: "#C8102E", secondary: "#1D428A", textColor: "#FFFFFF", name: "Detroit Pistons" },
-  SAS: { primary: "#000000", secondary: "#C4CED4", textColor: "#FFFFFF", name: "San Antonio Spurs" },
-  WAS: { primary: "#002B5C", secondary: "#E31837", textColor: "#FFFFFF", name: "Washington Wizards" },
+  UTA: { primary: "#F9A01B", secondary: "#002B5C", textColor: "#FFFFFF", name: "Utah Jazz" }, // Swapped to Gold Primary
+  CHA: { primary: "#00A8C1", secondary: "#1D1160", textColor: "#FFFFFF", name: "Charlotte Hornets" }, // Swapped to Teal Primary
+  ORL: { primary: "#0099FF", secondary: "#C4CED4", textColor: "#FFFFFF", name: "Orlando Magic" }, // Brighter Blue
+  ATL: { primary: "#FF474A", secondary: "#C1D32F", textColor: "#FFFFFF", name: "Atlanta Hawks" }, // Brighter Red
+  TOR: { primary: "#C72441", secondary: "#000000", textColor: "#FFFFFF", name: "Toronto Raptors" }, // Brighter Red
+  HOU: { primary: "#FF1E56", secondary: "#000000", textColor: "#FFFFFF", name: "Houston Rockets" }, // Brighter Red
+  DET: { primary: "#FF1A3D", secondary: "#1D428A", textColor: "#FFFFFF", name: "Detroit Pistons" }, // Brighter Red
+  SAS: { primary: "#C4CED4", secondary: "#000000", textColor: "#000000", name: "San Antonio Spurs" }, // Swapped to Silver Primary
+  WAS: { primary: "#E31837", secondary: "#002B5C", textColor: "#FFFFFF", name: "Washington Wizards" }, // Swapped to Red Primary
 };
 
 export function getTeamColorInfo(abbr: string | null | undefined): TeamColorInfo {
