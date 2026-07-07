@@ -49,20 +49,49 @@ class ReplaySimulator:
             FROM games_list WHERE game_id = ?
         """, (game_id,))
         row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return None
+            
+        home_team_id = row[4]
+        away_team_id = row[5]
+        
+        # Fallback dynamic team ID extraction if they are None in games_list
+        if home_team_id is None:
+            cursor.execute("""
+                SELECT DISTINCT player1_team_id 
+                FROM play_by_play 
+                WHERE game_id = ? AND homedescription IS NOT NULL AND player1_team_id IS NOT NULL 
+                LIMIT 1
+            """, (game_id,))
+            home_row = cursor.fetchone()
+            if home_row:
+                home_team_id = home_row[0]
+                
+        if away_team_id is None:
+            cursor.execute("""
+                SELECT DISTINCT player1_team_id 
+                FROM play_by_play 
+                WHERE game_id = ? AND visitordescription IS NOT NULL AND player1_team_id IS NOT NULL 
+                LIMIT 1
+            """, (game_id,))
+            away_row = cursor.fetchone()
+            if away_row:
+                away_team_id = away_row[0]
+                
         conn.close()
         
-        if row:
-            return {
-                "game_id": row[0],
-                "season": row[1],
-                "game_date": row[2],
-                "matchup": row[3],
-                "home_team_id": int(row[4]),
-                "away_team_id": int(row[5]),
-                "home_team_abbr": row[6],
-                "away_team_abbr": row[7]
-            }
-        return None
+        return {
+            "game_id": row[0],
+            "season": row[1],
+            "game_date": row[2],
+            "matchup": row[3],
+            "home_team_id": int(home_team_id) if home_team_id is not None else None,
+            "away_team_id": int(away_team_id) if away_team_id is not None else None,
+            "home_team_abbr": row[6],
+            "away_team_abbr": row[7]
+        }
 
     def load_game(self, game_id: str) -> bool:
         """
