@@ -30,12 +30,23 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
     homeScore: play.home_score,
     awayScore: play.away_score,
     description: play.description,
+    period: play.period,
     displayTime: `Q${play.period} ${Math.floor(play.seconds_remaining_in_period / 60)}:${Math.floor(
       play.seconds_remaining_in_period % 60
     )
       .toString()
       .padStart(2, "0")}`,
   }));
+  
+  // Find indices where quarters start to use as custom ticks
+  const ticks: number[] = [];
+  let currentPeriod = 0;
+  chartData.forEach((d) => {
+    if (d.period !== currentPeriod) {
+      ticks.push(d.index);
+      currentPeriod = d.period;
+    }
+  });
 
   const homeColorInfo = getTeamColorInfo(homeTeam);
   const awayColorInfo = getTeamColorInfo(awayTeam);
@@ -93,7 +104,7 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
             Win Probability Pulse Chart
           </h2>
           <p className="text-xs text-slate-400 font-light leading-relaxed">
-            Live win probability updates. The chart splits at the <strong>50% Toss-Up line</strong>: area fills <strong>upward</strong> in the Home Team&apos;s color when they lead, and <strong>downward</strong> in the Visitor Team&apos;s color when they lead.
+            Live win probability updates. The chart splits at the <strong>50% Toss-Up line</strong>: area fills <strong>upward</strong> (increasing to 100% at the top) for {homeColorInfo.name}, and <strong>downward</strong> (increasing to 100% at the bottom) for {awayColorInfo.name}.
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider font-athletic">
@@ -143,15 +154,31 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               
               <XAxis
                 dataKey="index"
-                hide={true}
+                ticks={ticks}
+                tickFormatter={(idx) => {
+                  const dataPoint = chartData[idx];
+                  if (!dataPoint) return "";
+                  if (dataPoint.period <= 4) return `Q${dataPoint.period}`;
+                  return `OT${dataPoint.period - 4}`;
+                }}
+                axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
+                tickLine={false}
+                style={{
+                  fontSize: "9px",
+                  fill: "rgba(148, 163, 184, 0.5)",
+                  fontFamily: "var(--font-inter)",
+                }}
               />
 
               <YAxis
                 domain={[0, 100]}
-                tickCount={5}
+                ticks={[0, 25, 50, 75, 100]}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(val) => `${val}%`}
+                tickFormatter={(val) => {
+                  if (val === 50) return "50%";
+                  return val > 50 ? `${val}%` : `${100 - val}%`;
+                }}
                 style={{
                   fontSize: "10px",
                   fill: "rgba(148, 163, 184, 0.7)",
