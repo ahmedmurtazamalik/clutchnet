@@ -4,6 +4,7 @@ import React from "react";
 import {
   AreaChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -27,6 +28,8 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
     index: idx,
     eventnum: play.eventnum,
     probability: play.win_probability * 100, // percentage: 0 to 100
+    homePart: Math.max(play.win_probability * 100, 50), // clamped at or above 50
+    awayPart: Math.min(play.win_probability * 100, 50), // clamped at or below 50
     homeScore: play.home_score,
     awayScore: play.away_score,
     description: play.description,
@@ -224,47 +227,18 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
               data={chartData}
               margin={{ top: 20, right: 10, left: -25, bottom: 20 }}
             >
-              <defs>
-                {/* Active gradients */}
-                <linearGradient id="probabilityGlow" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor={homeColorInfo.primary} stopOpacity={0.35} />
-                  <stop offset="45%" stopColor={homeColorInfo.primary} stopOpacity={0.06} />
-                  <stop offset="50%" stopColor="#18181b" stopOpacity={0.02} />
-                  <stop offset="55%" stopColor={awayColorInfo.primary} stopOpacity={0.06} />
-                  <stop offset="100%" stopColor={awayColorInfo.primary} stopOpacity={0.35} />
-                </linearGradient>
-                <linearGradient id="strokeGradient" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor={homeColorInfo.primary} />
-                  <stop offset="48%" stopColor={homeColorInfo.primary} />
-                  <stop offset="50%" stopColor="#71717a" />
-                  <stop offset="52%" stopColor={awayColorInfo.primary} />
-                  <stop offset="100%" stopColor={awayColorInfo.primary} />
-                </linearGradient>
-                {/* Neutral/Streaming gradients */}
-                <linearGradient id="neutralGlow" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#64748b" stopOpacity={0.15} />
-                  <stop offset="50%" stopColor="#18181b" stopOpacity={0.02} />
-                  <stop offset="100%" stopColor="#64748b" stopOpacity={0.15} />
-                </linearGradient>
-                <linearGradient id="neutralStroke" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#cbd5e1" />
-                  <stop offset="50%" stopColor="#64748b" />
-                  <stop offset="100%" stopColor="#cbd5e1" />
-                </linearGradient>
-              </defs>
-
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               
               <XAxis
                 dataKey="index"
                 ticks={ticks}
                 tickFormatter={(idx) => tickLabels[idx] || ""}
-                axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
+                axisLine={{ stroke: "rgba(255,255,255,0.12)" }}
                 tickLine={false}
                 minTickGap={20}
                 style={{
-                  fontSize: "8px",
-                  fill: "rgba(148, 163, 184, 0.5)",
+                  fontSize: "9px",
+                  fill: "#94a3b8",
                   fontFamily: "var(--font-inter)",
                 }}
               />
@@ -280,36 +254,62 @@ export function PulseChart({ plays, homeTeam, awayTeam }: PulseChartProps) {
                 }}
                 style={{
                   fontSize: "10px",
-                  fill: "rgba(148, 163, 184, 0.7)",
+                  fill: "#94a3b8",
                   fontFamily: "var(--font-mono)",
                 }}
               />
 
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.08)", strokeWidth: 1.5 }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.12)", strokeWidth: 1.5 }} />
 
               {/* Toss up reference line at 50% */}
               <ReferenceLine
                 y={50}
-                stroke="rgba(255,255,255,0.15)"
+                stroke="rgba(255,255,255,0.2)"
                 strokeDasharray="4 4"
                 label={{
                   value: "Toss Up",
                   position: "insideBottomRight",
-                  fill: "rgba(148, 163, 184, 0.4)",
+                  fill: "#64748b",
                   fontSize: 9,
                   fontFamily: "var(--font-inter)",
                 }}
               />
 
+              {/* Home team fill area (above 50%) */}
               <Area
                 type="monotone"
+                dataKey="homePart"
+                baseValue={50}
+                fill={isFinished ? homeColorInfo.primary : "#94a3b8"}
+                fillOpacity={isFinished ? 0.3 : 0.08}
+                stroke="none"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+
+              {/* Away team fill area (below 50%) */}
+              <Area
+                type="monotone"
+                dataKey="awayPart"
+                baseValue={50}
+                fill={isFinished ? awayColorInfo.primary : "#94a3b8"}
+                fillOpacity={isFinished ? 0.3 : 0.08}
+                stroke="none"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+
+              {/* Main probability line trace */}
+              <Line
+                type="monotone"
                 dataKey="probability"
-                stroke={isFinished ? "url(#strokeGradient)" : "url(#neutralStroke)"}
-                strokeWidth={2.5}
-                fill={isFinished ? "url(#probabilityGlow)" : "url(#neutralGlow)"}
+                stroke={isFinished ? "#e2e8f0" : "#e2e8f0"}
+                strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0, fill: "#ffffff" }}
-                baseValue={50}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>
