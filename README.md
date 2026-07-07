@@ -148,9 +148,9 @@ To calculate probabilities, the PyTorch model evaluates the game configuration a
 
 ---
 
-## 🎨 Visual Redesign Details (Before vs. After)
+## 🎨 Visual & UI Design Details
 
-A comprehensive redesign has been implemented to replace generic tech layouts with an authentic sports broadcast interface:
+The platform features an authentic, immersive sports broadcast interface:
 * **The "Jumbotron" Scoreboard:** The top banner layout is modeled on an arena center-hung display with retro scoreboard digital timers.
 * **The Hardwood Floor:** A custom court-grid line shader is layered onto a deep charcoal mesh background.
 * **Admission Tickets:** Matchups in the sidebar list are styled as physical tickets complete with circular coupon border cuts and dashed separation lines.
