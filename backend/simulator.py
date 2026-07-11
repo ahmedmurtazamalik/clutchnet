@@ -115,8 +115,18 @@ class ReplaySimulator:
         pbp_df = pd.read_sql_query(query, conn, params=(game_id,))
         conn.close()
         
+        # Fallback: if play-by-play records are missing, dynamically scrape them from the NBA API
         if pbp_df.empty:
-            print(f"[SIMULATOR] Play-by-play records for game {game_id} are empty or missing.")
+            print(f"[SIMULATOR] Play-by-play records for game {game_id} are empty. Fetching dynamically from NBA API...")
+            try:
+                from backend.data.scraper import fetch_game_play_by_play
+                pbp_df = fetch_game_play_by_play(game_id, force_api=True)
+            except Exception as e:
+                print(f"[SIMULATOR] Dynamic scraping failed for game {game_id}: {e}")
+                return False
+            
+        if pbp_df.empty:
+            print(f"[SIMULATOR] Play-by-play records for game {game_id} are still empty or missing after API call.")
             return False
             
         home_elo = self.elos.get(game_details["home_team_abbr"], 1500.0)
