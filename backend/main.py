@@ -100,6 +100,59 @@ def list_games():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
 
+@app.get("/api/games/season/{season}", response_model=List[Dict[str, Any]])
+def list_games_by_season(season: str):
+    """Queries and returns a list of games for a specific season.
+    If no games are cached locally for that season, it dynamically fetches and caches them from the NBA API.
+    """
+    if not os.path.exists(DB_PATH):
+        # Ensure database and tables are initialized
+        from backend.data.scraper import get_db_connection
+        conn = get_db_connection()
+        conn.close()
+        
+    try:
+        # Check if we already have games cached for this season
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM games_list WHERE season = ?", (season,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        # If not cached, dynamically scrape the season schedule
+        if count == 0:
+            print(f"[API] No cached games for season {season}. Fetching schedule dynamically...")
+            from backend.data.scraper import fetch_season_games
+            # Scrape schedule (lightweight data)
+            fetch_season_games(season)
+            
+        # Retrieve the games list for this season
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT game_id, season, game_date, matchup, home_team_abbr, away_team_abbr 
+            FROM games_list 
+            WHERE season = ?
+            ORDER BY game_date DESC, game_id DESC
+        """, (season,))
+        rows = cursor.fetchall()
+        conn.close()
+        
+        games = [
+            {
+                "game_id": row[0],
+                "season": row[1],
+                "game_date": row[2],
+                "matchup": row[3],
+                "home_team_abbr": row[4],
+                "away_team_abbr": row[5]
+            }
+            for row in rows
+        ]
+        return games
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load games for season {season}: {e}")
+
 @app.post("/api/simulator/control")
 async def control_simulator(control: SimulatorControl):
     """Handles REST controls for starting, pausing, resuming, stopping, and scaling simulation speeds."""
