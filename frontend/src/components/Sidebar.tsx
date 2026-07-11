@@ -21,6 +21,7 @@ interface SidebarProps {
 
 export function Sidebar({ selectedGameId, onSelectGame, connectionStatus }: SidebarProps) {
   const [games, setGames] = useState<Game[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<string>("local");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +31,10 @@ export function Sidebar({ selectedGameId, onSelectGame, connectionStatus }: Side
         setLoading(true);
         setError(null);
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        const res = await fetch(`${backendUrl}/api/games`);
+        const url = selectedSeason === "local"
+          ? `${backendUrl}/api/games`
+          : `${backendUrl}/api/games/season/${selectedSeason}`;
+        const res = await fetch(url);
         if (!res.ok) {
           throw new Error(`Error fetching games: ${res.statusText}`);
         }
@@ -44,7 +48,7 @@ export function Sidebar({ selectedGameId, onSelectGame, connectionStatus }: Side
       }
     }
     fetchGames();
-  }, []);
+  }, [selectedSeason]);
 
   const getStatusColor = () => {
     switch (connectionStatus) {
@@ -106,10 +110,32 @@ export function Sidebar({ selectedGameId, onSelectGame, connectionStatus }: Side
           <span>Select Game Feed</span>
         </div>
 
+        <div className="px-2">
+          <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block mb-1.5 font-athletic">
+            Season Catalog
+          </label>
+          <select
+            value={selectedSeason}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+            disabled={loading}
+            className="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-court-orange transition-all font-mono disabled:opacity-50"
+          >
+            <option value="local">Local Demo Cache</option>
+            <option value="2024-25">2024-25 Season</option>
+            <option value="2023-24">2023-24 Season</option>
+            <option value="2022-23">2022-23 Season</option>
+            <option value="2021-22">2021-22 Season</option>
+          </select>
+        </div>
+
         {loading && (
-          <div className="flex flex-col items-center justify-center py-12 space-y-2">
+          <div className="flex flex-col items-center justify-center py-12 space-y-2 text-center px-4">
             <div className="w-8 h-8 border-4 border-slate-800 border-t-court-orange rounded-full animate-spin" />
-            <span className="text-xs text-slate-400">Loading NBA games database...</span>
+            <span className="text-xs text-slate-400">
+              {selectedSeason === "local"
+                ? "Loading NBA games database..."
+                : `Scraping & caching ${selectedSeason} season schedule from NBA API...`}
+            </span>
           </div>
         )}
 
